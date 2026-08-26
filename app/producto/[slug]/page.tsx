@@ -1,0 +1,2 @@
+import Link from 'next/link'; import { notFound } from 'next/navigation'; import ProductDetail from '../../../components/ProductDetail'; import { products } from '../../../components/data';
+export default function Page({params}:{params:{slug:string}}){const product=products.find(p=>p.id===params.slug);if(!product)return notFound();return <><div className="detail-top"><Link href="/">← Volver al catálogo</Link><span>SE VA<span>!</span></span><Link href="/seleccion">Mi selección →</Link></div><ProductDetail product={product}/></>}

@@ -1,0 +1,17 @@
+create type product_status as enum ('available','reserved','sold','draft','archived');
+create type fulfillment_type as enum ('pickup','shipping','both');
+create table profiles (id uuid primary key references auth.users(id) on delete cascade, display_name text, role text not null default 'admin', created_at timestamptz default now());
+create table categories (id uuid primary key default gen_random_uuid(), name text not null unique, slug text not null unique, description text, sort_order integer default 0, is_active boolean default true, created_at timestamptz default now(), updated_at timestamptz default now());
+create table products (id uuid primary key default gen_random_uuid(), title text not null, slug text not null unique, description text not null default '', category_id uuid references categories(id), status product_status not null default 'draft', price_cents integer not null check(price_cents >= 0), previous_price_cents integer check(previous_price_cents is null or previous_price_cents > price_cents), show_previous_price boolean not null default false, currency text not null default 'ARS', quantity integer not null default 1 check(quantity >= 0), fulfillment fulfillment_type not null default 'pickup', pickup_notes text, shipping_notes text, condition text, location_label text, is_featured boolean not null default false, is_public boolean not null default false, published_at timestamptz, created_at timestamptz default now(), updated_at timestamptz default now());
+create table product_images (id uuid primary key default gen_random_uuid(), product_id uuid not null references products(id) on delete cascade, storage_path text not null unique, alt_text text, sort_order integer default 0, width integer, height integer, created_at timestamptz default now());
+create table site_settings (id integer primary key default 1 check(id=1), whatsapp_phone text not null, whatsapp_default_message text, pickup_policy text, shipping_policy text, site_name text default 'SE VA!', updated_at timestamptz default now());
+alter table profiles enable row level security; alter table categories enable row level security; alter table products enable row level security; alter table product_images enable row level security; alter table site_settings enable row level security;
+create or replace function is_admin() returns boolean language sql security definer set search_path = public as $$ select exists(select 1 from profiles where id=auth.uid() and role='admin'); $$;
+create policy "public active categories" on categories for select using (is_active=true or is_admin());
+create policy "public products" on products for select using ((is_public=true and status not in ('draft','archived')) or is_admin());
+create policy "public images" on product_images for select using (exists(select 1 from products where products.id=product_images.product_id and products.is_public=true and products.status not in ('draft','archived')) or is_admin());
+create policy "admins categories" on categories for all using (is_admin()) with check (is_admin());
+create policy "admins products" on products for all using (is_admin()) with check (is_admin());
+create policy "admins images" on product_images for all using (is_admin()) with check (is_admin());
+create policy "public settings" on site_settings for select using (true);
+create policy "admins settings" on site_settings for update using (is_admin()) with check (is_admin());
