@@ -1,5 +1,5 @@
 export type Status = 'available' | 'reserved' | 'sold';
-export type Product = { id:string; title:string; category:string; price:number; status:Status; image:string; description:string; featured?:boolean };
+export type Product = { id:string; title:string; category:string; price:number; status:Status; image:string; description:string; featured?:boolean; isPublic?:boolean };
 export const products: Product[] = [
  {id:'lampara-luna',title:'Lámpara Luna',category:'Casa',price:30000,status:'available',image:'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=900&q=85',description:'Una luz suave para noches de lectura y sobremesas largas.',featured:true},
  {id:'sillon-mostaza',title:'Sillón mostaza',category:'Muebles',price:85000,status:'available',image:'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=900&q=85',description:'Cómodo, con personalidad y listo para una nueva casa.',featured:true},

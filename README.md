@@ -23,6 +23,8 @@ NEXT_PUBLIC_SITE_URL=
 
 La migración inicial está en `supabase/migrations/001_initial.sql`.
 
+El panel de administración vive en `/admin/login` y usa Supabase Auth. Los usuarios autorizados deben existir en `profiles` con `role='admin'`.
+
 ## Coolify
 
 El proyecto incluye `Dockerfile` y expone el puerto `3000`. En Coolify configurar las variables de Supabase y `NEXT_PUBLIC_SITE_URL` con el dominio final.
