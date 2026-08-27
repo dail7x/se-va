@@ -1,5 +1,6 @@
+import { createClient } from '@supabase/supabase-js';
+import { unstable_noStore as noStore } from 'next/cache';
 import { products as demoProducts, type Product } from '../components/data';
-import { createBrowserSupabaseClient } from './supabase/client';
 import { createServiceSupabaseClient } from './supabase/server';
 
 type ProductRow = {
@@ -14,8 +15,6 @@ type ProductRow = {
   categories: { name: string } | { name: string }[] | null;
   product_images: { storage_path: string }[];
 };
-
-export const defaultCategories = ['Todo','Casa','Muebles','Cocina','Decoración','Varios'];
 
 export function mapProduct(row: ProductRow): Product {
   const category = Array.isArray(row.categories) ? row.categories[0] : row.categories;
@@ -38,22 +37,23 @@ function hasSupabaseEnv() {
 }
 
 export async function getPublicProducts(): Promise<Product[]> {
+  noStore();
+
   if (!hasSupabaseEnv()) return demoProducts;
 
-  try {
-    const supabase = createBrowserSupabaseClient();
-    const { data, error } = await supabase
-      .from('products')
-      .select('id,title,slug,description,status,price_cents,is_featured,is_public,categories(name),product_images(storage_path)')
-      .eq('is_public', true)
-      .not('status', 'in', '("draft","archived")')
-      .order('created_at', { ascending: false });
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
+  const { data, error } = await supabase
+    .from('products')
+    .select('id,title,slug,description,status,price_cents,is_featured,is_public,categories(name),product_images(storage_path)')
+    .eq('is_public', true)
+    .not('status', 'in', '("draft","archived")')
+    .order('created_at', { ascending: false });
 
-    if (error) throw error;
-    return data?.length ? data.map((row) => mapProduct(row as unknown as ProductRow)) : demoProducts;
-  } catch {
-    return demoProducts;
-  }
+  if (error) throw error;
+  return data?.map((row) => mapProduct(row as unknown as ProductRow)) || [];
 }
 
 export async function getPublicProduct(slug: string): Promise<Product | null> {
