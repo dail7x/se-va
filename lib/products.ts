@@ -13,11 +13,15 @@ type ProductRow = {
   is_featured: boolean;
   is_public: boolean;
   categories: { name: string } | { name: string }[] | null;
-  product_images: { storage_path: string }[];
+  product_images: { storage_path: string; sort_order?: number | null }[];
 };
 
 export function mapProduct(row: ProductRow): Product {
   const category = Array.isArray(row.categories) ? row.categories[0] : row.categories;
+  const images = [...(row.product_images || [])]
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+    .map((image) => image.storage_path);
+  const fallbackImage = 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=900&q=85';
 
   return {
     id: row.slug,
@@ -25,7 +29,8 @@ export function mapProduct(row: ProductRow): Product {
     category: category?.name || 'Varios',
     price: Math.round(row.price_cents / 100),
     status: row.status,
-    image: row.product_images?.[0]?.storage_path || 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=900&q=85',
+    image: images[0] || fallbackImage,
+    images: images.length ? images : [fallbackImage],
     description: row.description,
     featured: row.is_featured,
     isPublic: row.is_public,
@@ -47,7 +52,7 @@ export async function getPublicProducts(): Promise<Product[]> {
   );
   const { data, error } = await supabase
     .from('products')
-    .select('id,title,slug,description,status,price_cents,is_featured,is_public,categories(name),product_images(storage_path)')
+    .select('id,title,slug,description,status,price_cents,is_featured,is_public,categories(name),product_images(storage_path,sort_order)')
     .eq('is_public', true)
     .not('status', 'in', '("draft","archived")')
     .order('created_at', { ascending: false });
@@ -65,7 +70,7 @@ export async function getAdminProducts() {
   const supabase = createServiceSupabaseClient();
   const { data, error } = await supabase
     .from('products')
-    .select('id,title,slug,description,status,price_cents,is_featured,is_public,category_id,categories(name),product_images(id,storage_path)')
+    .select('id,title,slug,description,status,price_cents,is_featured,is_public,category_id,categories(name),product_images(id,storage_path,sort_order)')
     .order('created_at', { ascending: false });
 
   if (error) throw error;

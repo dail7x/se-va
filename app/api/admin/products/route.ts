@@ -27,7 +27,9 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const title = String(body.title || '').trim();
   const categoryName = String(body.category || 'Varios').trim();
-  const image = String(body.image || '').trim();
+  const images: string[] = Array.isArray(body.images)
+    ? body.images.map((image: unknown) => String(image || '').trim()).filter(Boolean)
+    : [String(body.image || '').trim()].filter(Boolean);
   const price = Number(body.price || 0);
 
   if (!title || !Number.isFinite(price) || price < 0) {
@@ -61,21 +63,23 @@ export async function POST(request: NextRequest) {
   const { data: product, error: productError } = await query;
   if (productError) return NextResponse.json({ error: productError.message }, { status: 400 });
 
-  if (image) {
-    const { data: existing } = await admin.supabase
+  if (body.id) {
+    const { error: deleteImagesError } = await admin.supabase
       .from('product_images')
-      .select('id')
-      .eq('product_id', product.id)
-      .order('sort_order', { ascending: true })
-      .limit(1)
-      .maybeSingle();
+      .delete()
+      .eq('product_id', product.id);
+    if (deleteImagesError) return NextResponse.json({ error: deleteImagesError.message }, { status: 400 });
+  }
 
-    const imagePayload = { product_id: product.id, storage_path: image, alt_text: title, sort_order: 0 };
-    if (existing?.id) {
-      await admin.supabase.from('product_images').update(imagePayload).eq('id', existing.id);
-    } else {
-      await admin.supabase.from('product_images').insert(imagePayload);
-    }
+  if (images.length) {
+    const imageRows = images.map((image: string, index: number) => ({
+      product_id: product.id,
+      storage_path: image,
+      alt_text: title,
+      sort_order: index,
+    }));
+    const { error: imageError } = await admin.supabase.from('product_images').insert(imageRows);
+    if (imageError) return NextResponse.json({ error: imageError.message }, { status: 400 });
   }
 
   return NextResponse.json({ ok: true });
