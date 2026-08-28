@@ -1,5 +1,5 @@
 export type Status = 'available' | 'reserved' | 'sold';
-export type Product = { id:string; title:string; category:string; price:number; status:Status; image:string; description:string; featured?:boolean; isPublic?:boolean };
+export type Product = { id:string; title:string; category:string; price:number; status:Status; image:string; images:string[]; description:string; featured?:boolean; isPublic?:boolean };
 export const products: Product[] = [];
 export const categories = ['Todo','Casa','Muebles','Cocina','Decoración','Varios'];
 export const formatPrice = (value:number) => new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(value);
