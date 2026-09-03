@@ -9,20 +9,32 @@ import { whatsappPhone } from '../lib/site';
 
 type Context = {
   selected: Product[];
+  interests: Product[];
   toggle: (product: Product) => void;
   add: (product: Product) => void;
   remove: (id: string) => void;
   has: (id: string) => boolean;
   clear: () => void;
+  addInterest: (product: Product) => void;
+  removeInterest: (id: string) => void;
+  hasInterest: (id: string) => boolean;
+  clearInterests: () => void;
+  moveToSelected: (product: Product) => void;
 };
 
 const SelectionContext = createContext<Context>({
   selected: [],
+  interests: [],
   toggle: () => {},
   add: () => {},
   remove: () => {},
   has: () => false,
   clear: () => {},
+  addInterest: () => {},
+  removeInterest: () => {},
+  hasInterest: () => false,
+  clearInterests: () => {},
+  moveToSelected: () => {},
 });
 
 function buildOfferUrl(selected: Product[]) {
@@ -34,7 +46,7 @@ function SelectionDock({ selected, clear }: { selected: Product[]; clear: () => 
   const pathname = usePathname();
   const total = useMemo(() => selected.reduce((sum, product) => sum + product.price, 0), [selected]);
 
-  if (!selected.length || pathname.startsWith('/admin') || pathname === '/seleccion') return null;
+  if (!selected.length || pathname.startsWith('/admin') || pathname === '/seleccion' || pathname === '/descubrir') return null;
 
   return (
     <aside className="selection-dock" aria-label="Resumen de selección">
@@ -57,11 +69,13 @@ function SelectionDock({ selected, clear }: { selected: Product[]; clear: () => 
 
 export function SelectionProvider({children}:{children:React.ReactNode}) {
   const [selected, setSelected] = useState<Product[]>([]);
+  const [interests, setInterests] = useState<Product[]>([]);
   const [toast, setToast] = useState('');
 
   useEffect(() => {
     try {
       setSelected(JSON.parse(localStorage.getItem('se-va-selection') || '[]'));
+      setInterests(JSON.parse(localStorage.getItem('se-va-interests') || '[]'));
     } catch {}
   }, []);
 
@@ -70,27 +84,69 @@ export function SelectionProvider({children}:{children:React.ReactNode}) {
   }, [selected]);
 
   useEffect(() => {
+    localStorage.setItem('se-va-interests', JSON.stringify(interests));
+  }, [interests]);
+
+  useEffect(() => {
     if (!toast) return;
     const timeout = window.setTimeout(() => setToast(''), 2600);
     return () => window.clearTimeout(timeout);
   }, [toast]);
 
-  const add = (product: Product) => setSelected((current) => {
-    if (current.some((item) => item.id === product.id)) return current;
-    setToast(`${product.title} se agregó a tu selección.`);
-    return [...current, product];
-  });
+  const add = (product: Product) => {
+    setSelected((current) => {
+      if (current.some((item) => item.id === product.id)) return current;
+      return [...current, product];
+    });
+    // Remove from interests if it was there
+    setInterests((current) => current.filter((item) => item.id !== product.id));
+    setToast(`${product.title} se sumó a tu selección.`);
+  };
 
   const remove = (id: string) => setSelected((current) => current.filter((product) => product.id !== id));
 
   const toggle = (product: Product) => setSelected((current) => {
-    if (current.some((item) => item.id === product.id)) return current.filter((item) => item.id !== product.id);
-    setToast(`${product.title} se agregó a tu selección.`);
+    if (current.some((item) => item.id === product.id)) {
+      setToast(`${product.title} se quitó de tu selección.`);
+      return current.filter((item) => item.id !== product.id);
+    }
+    setInterests((prev) => prev.filter((item) => item.id !== product.id));
+    setToast(`${product.title} se sumó a tu selección.`);
     return [...current, product];
   });
 
+  const addInterest = (product: Product) => {
+    setInterests((current) => {
+      if (current.some((item) => item.id === product.id)) return current;
+      return [...current, product];
+    });
+    setToast(`${product.title} se guardó en "Puede ser".`);
+  };
+
+  const removeInterest = (id: string) => setInterests((current) => current.filter((item) => item.id !== id));
+
+  const moveToSelected = (product: Product) => {
+    removeInterest(product.id);
+    add(product);
+  };
+
   return (
-    <SelectionContext.Provider value={{ selected, toggle, add, remove, has: id => selected.some(product => product.id === id), clear: () => setSelected([]) }}>
+    <SelectionContext.Provider
+      value={{
+        selected,
+        interests,
+        toggle,
+        add,
+        remove,
+        has: (id) => selected.some((p) => p.id === id),
+        clear: () => setSelected([]),
+        addInterest,
+        removeInterest,
+        hasInterest: (id) => interests.some((p) => p.id === id),
+        clearInterests: () => setInterests([]),
+        moveToSelected,
+      }}
+    >
       {children}
       {toast && <div className="selection-toast" role="status">{toast}</div>}
       <SelectionDock selected={selected} clear={() => setSelected([])} />
