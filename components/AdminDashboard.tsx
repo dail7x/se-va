@@ -214,7 +214,7 @@ export default function AdminDashboard() {
             <label>Slug<input value={form.slug} onChange={event=>setForm({...form,slug:event.target.value})} placeholder="se-genera-si-lo-dejas-vacio"/></label>
             <label>Precio ARS<input type="number" min="0" value={form.price} onChange={event=>setForm({...form,price:event.target.value})} required/></label>
             <label>Categoría<select value={form.category} onChange={event=>setForm({...form,category:event.target.value})}>{defaultCategories.filter(category=>category!=='Todo').map(category=><option key={category}>{category}</option>)}</select></label>
-            <label>Estado<select value={form.status} onChange={event=>setForm({...form,status:event.target.value as Status})}><option value="available">Todavía está</option><option value="reserved">Casi se va</option><option value="sold">Se fue</option></select></label>
+            <label>Estado<select value={form.status} onChange={event=>setForm({...form,status:event.target.value as Status})}><option value="available">Todavía está</option><option value="reserved">Casi se va</option><option value="sold">Ya se fue!</option></select></label>
             <div className="image-field">
               <span className="field-label">Fotos</span>
               <label className="upload-control"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={event=>uploadImages(event.target.files)}/><Upload size={17}/>{uploading?'Subiendo...':'Subir fotos'}</label>

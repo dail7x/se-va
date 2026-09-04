@@ -65,13 +65,20 @@ export default function ProductDetail({ product }: { product: Product }) {
     <article className="detail" id={`product-${product.id}`} data-product-id={product.id}>
       <div className="detail-gallery">
         <div
-          className="detail-image"
+          className={`detail-image ${product.status === 'sold' ? 'sold-product' : ''}`}
+          onClick={() => openLightbox(currentIdx)}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
           title="Deslizá para ver más fotos"
         >
           <img src={activeImage} alt={product.title} />
           <span className={'status ' + product.status}>{statusLabel[product.status]}</span>
+
+          {product.status === 'sold' && (
+            <div className="catalog-sold-overlay" aria-hidden="true">
+              <span className="catalog-sold-stamp">Ya se fue!</span>
+            </div>
+          )}
 
           {images.length > 1 && (
             <>

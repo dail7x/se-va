@@ -610,34 +610,140 @@ body:has(.tinder-page) {
   backdrop-filter: blur(6px);
   padding: 5px 11px;
 }
-.tinder-photo-nav {
+/* Sold Card in Tinder View */
+.tinder-card.sold-card .tinder-card-img-wrap img {
+  filter: brightness(0.52) contrast(0.92) saturate(0.55);
+}
+
+.tinder-sold-watermark {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 25%;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 7;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tinder-sold-stamp {
+  font-family: Fraunces, serif;
+  font-weight: 800;
+  font-size: clamp(24px, 6.5vw, 34px);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgba(220, 38, 38, 0.94);
+  border: 3px solid #ffffff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+  padding: 9px 24px;
+  border-radius: 10px;
+  transform: rotate(-8deg);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Tinder edge tap panels & arrow bubbles */
+.tinder-photo-tap-zones {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  z-index: 5;
+  pointer-events: auto;
+}
+
+.tinder-edge-panel {
+  width: 32%;
+  height: 100%;
   border: 0;
   background: transparent;
   display: flex;
   align-items: center;
-  color: #fff;
-  opacity: 0;
-  transition: opacity .2s ease;
-  z-index: 6;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.2s ease;
+  z-index: 5;
 }
-.tinder-photo-nav:hover {
-  opacity: 0.85;
-}
-.tinder-photo-nav.left {
-  left: 0;
+
+.tinder-edge-panel.left {
   justify-content: flex-start;
-  padding-left: 8px;
-  background: linear-gradient(90deg, rgba(0,0,0,.25) 0%, transparent 100%);
+  padding-left: 10px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.22) 0%, rgba(0, 0, 0, 0.04) 60%, transparent 100%);
 }
-.tinder-photo-nav.right {
-  right: 0;
+
+.tinder-edge-panel.right {
   justify-content: flex-end;
-  padding-right: 8px;
-  background: linear-gradient(-90deg, rgba(0,0,0,.25) 0%, transparent 100%);
+  padding-right: 10px;
+  background: linear-gradient(270deg, rgba(0, 0, 0, 0.22) 0%, rgba(0, 0, 0, 0.04) 60%, transparent 100%);
+}
+
+.tinder-edge-panel:hover {
+  background-color: rgba(0, 0, 0, 0.12);
+}
+
+.edge-arrow-bubble {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(22, 26, 21, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tinder-edge-panel:hover .edge-arrow-bubble {
+  transform: scale(1.1);
+  background: rgba(22, 26, 21, 0.85);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+.tinder-edge-panel:active .edge-arrow-bubble {
+  transform: scale(0.92);
+}
+
+.tinder-center-tap-panel {
+  flex: 1;
+  height: 100%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  z-index: 5;
+}
+
+.tinder-center-tap-panel.full {
+  width: 100%;
+}
+
+.center-tap-hint {
+  opacity: 0;
+  pointer-events: none;
+  background: rgba(20, 24, 20, 0.75);
+  backdrop-filter: blur(6px);
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  transform: translateY(6px);
+}
+
+.tinder-center-tap-panel:hover .center-tap-hint {
+  opacity: 0.88;
+  transform: translateY(0);
 }
 
 /* Card Editorial Copy as Gradient Overlay */
@@ -649,10 +755,12 @@ body:has(.tinder-page) {
   padding: 48px 18px 16px;
   background: linear-gradient(180deg, transparent 0%, rgba(18,21,17,0.4) 28%, rgba(18,21,17,0.88) 72%, rgba(18,21,17,0.96) 100%);
   color: #fff;
-  z-index: 5;
-  pointer-events: none;
+  z-index: 6;
+  cursor: pointer;
+  pointer-events: auto;
 }
-.tinder-card-copy-overlay a {
+.tinder-card-copy-overlay a,
+.tinder-card-copy-overlay button {
   pointer-events: auto;
 }
 .tinder-identity h2 {
@@ -1386,6 +1494,40 @@ body:has(.tinder-page) {
   aspect-ratio: auto;
   height: 100%;
 }
+
+/* Sold items in Catalog & Detail Gallery */
+.product-image.sold-product img,
+.detail-image.sold-product img,
+.tinder-modal-main-img.sold-product img {
+  filter: brightness(0.55) contrast(0.92) saturate(0.55);
+}
+
+.catalog-sold-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 21, 17, 0.36);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.catalog-sold-stamp {
+  font-family: Fraunces, serif;
+  font-weight: 800;
+  font-size: clamp(16px, 2.5vw, 22px);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgba(220, 38, 38, 0.92);
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  padding: 6px 16px;
+  border-radius: 8px;
+  transform: rotate(-7deg);
+  text-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.35);
+}
 .card-photo-nav,
 .gallery-nav {
   position: absolute;
@@ -1566,6 +1708,28 @@ body:has(.tinder-page) {
   margin-left: 6px;
   flex-shrink: 0;
 }
+.tinder-cart-toast.toast-sold {
+  background: #271414;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+.tinder-cart-toast.toast-sold .tinder-toast-badge {
+  background: rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+}
+.sold-pill-mini {
+  background: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  white-space: nowrap;
+}
+.tinder-btn.btn-sold {
+  opacity: 0.55;
+  filter: grayscale(0.5);
+}
 
 .tinder-like-particle {
   position: fixed;
@@ -1734,6 +1898,30 @@ body:has(.tinder-page) {
   display: grid;
   gap: 12px;
   margin-top: 24px;
+}
+.tinder-sold-notice {
+  background: rgba(220, 38, 38, 0.07);
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  border-radius: 14px;
+  padding: 14px 18px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.tinder-sold-notice .sold-notice-badge {
+  font-family: Fraunces, serif;
+  font-weight: 800;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #dc2626;
+}
+.tinder-sold-notice p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
 }
 .tinder-modal-maybe-btn {
   min-height: 48px;

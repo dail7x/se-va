@@ -76,7 +76,7 @@ export const products: Product[] = [
     title: 'Radio de madera',
     category: 'Varios',
     price: 18000,
-    status: 'available',
+    status: 'sold',
     image: 'https://images.unsplash.com/photo-1584905066893-7d5c142ba4e1?auto=format&fit=crop&w=1200&q=85',
     images: [
       'https://images.unsplash.com/photo-1584905066893-7d5c142ba4e1?auto=format&fit=crop&w=1200&q=85',
@@ -113,4 +113,4 @@ export const products: Product[] = [
 ];
 export const categories = ['Todo','Casa','Muebles','Cocina','Decoración','Varios'];
 export const formatPrice = (value:number) => new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(value);
-export const statusLabel = { available:'Todavía está', reserved:'Casi se va', sold:'Se fue' };
+export const statusLabel = { available:'Todavía está', reserved:'Casi se va', sold:'Ya se fue!' };

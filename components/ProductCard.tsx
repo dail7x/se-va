@@ -70,11 +70,17 @@ export default function ProductCard({ product }: { product: Product }) {
       >
         <Link
           href={'/producto/' + product.id}
-          className="product-image"
+          className={`product-image ${product.status === 'sold' ? 'sold-product' : ''}`}
           onClick={handleImageClick}
         >
           <img src={images[activeIdx] || product.image} alt={product.title} />
           <span className={'status ' + product.status}>{statusLabel[product.status]}</span>
+
+          {product.status === 'sold' && (
+            <div className="catalog-sold-overlay" aria-hidden="true">
+              <span className="catalog-sold-stamp">Ya se fue!</span>
+            </div>
+          )}
         </Link>
 
         {images.length > 1 && (

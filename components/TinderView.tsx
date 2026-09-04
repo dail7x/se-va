@@ -34,15 +34,15 @@ type HistoryItem = {
 export default function TinderView({ products }: { products: Product[] }) {
   const { add, addInterest, selected, interests, has } = useSelection();
 
-  // Filter available products
-  const activeProducts = products.filter((p) => p.status !== 'sold');
+  // Keep all products so sold items are also discoverable with their 'Ya se fue!' badge
+  const activeProducts = products;
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [photoIndex, setPhotoIndex] = useState(0);
 
   // Cart toast & pop animation
-  const [cartToast, setCartToast] = useState<{ title: string; price: number } | null>(null);
+  const [cartToast, setCartToast] = useState<{ title: string; price: number; isSold?: boolean } | null>(null);
   const [likeParticle, setLikeParticle] = useState(false);
 
   // Detail modal state
@@ -74,17 +74,33 @@ export default function TinderView({ products }: { products: Product[] }) {
     return () => clearTimeout(timer);
   }, [cartToast]);
 
-  const handleNextPhoto = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const lastTapTime = useRef<number>(0);
+
+  const handleNextPhoto = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (Date.now() - lastTapTime.current < 400) return;
+    lastTapTime.current = Date.now();
     if (currentImages.length > 1) {
       setPhotoIndex((prev) => (prev + 1) % currentImages.length);
     }
   };
 
-  const handlePrevPhoto = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handlePrevPhoto = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (Date.now() - lastTapTime.current < 400) return;
+    lastTapTime.current = Date.now();
     if (currentImages.length > 1) {
       setPhotoIndex((prev) => (prev - 1 + currentImages.length) % currentImages.length);
+    }
+  };
+
+  const handleOpenDetail = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (Date.now() - lastTapTime.current < 400) return;
+    lastTapTime.current = Date.now();
+    if (currentProduct) {
+      setDetailProduct(currentProduct);
+      setDetailPhotoIndex(photoIndex);
     }
   };
 
@@ -95,10 +111,14 @@ export default function TinderView({ products }: { products: Product[] }) {
       setFlyingAction(action);
 
       if (action === 'like') {
-        add(currentProduct);
-        setCartToast({ title: currentProduct.title, price: currentProduct.price });
-        setLikeParticle(true);
-        setTimeout(() => setLikeParticle(false), 900);
+        if (currentProduct.status === 'sold') {
+          setCartToast({ title: currentProduct.title, price: currentProduct.price, isSold: true });
+        } else {
+          add(currentProduct);
+          setCartToast({ title: currentProduct.title, price: currentProduct.price, isSold: false });
+          setLikeParticle(true);
+          setTimeout(() => setLikeParticle(false), 900);
+        }
       } else if (action === 'maybe') {
         addInterest(currentProduct);
       }
@@ -159,16 +179,32 @@ export default function TinderView({ products }: { products: Product[] }) {
     const dy = drag.y;
     const distance = Math.hypot(dx, dy);
 
-    // If it was a clean tap (minimal distance and short duration), open product details!
+    // If it was a clean tap (minimal distance and short duration)
     if (!movedRef.current && distance < 12 && Date.now() - pointerDownTime.current < 450) {
       setDrag({ x: 0, y: 0 });
       dragStart.current = null;
-      if (currentProduct) {
-        setDetailProduct(currentProduct);
-        setDetailPhotoIndex(photoIndex);
+      lastTapTime.current = Date.now();
+
+      const rect = e.currentTarget.getBoundingClientRect();
+      const relativeX = (e.clientX - rect.left) / rect.width;
+
+      if (currentImages.length > 1 && relativeX < 0.32) {
+        // Left edge: previous photo
+        setPhotoIndex((prev) => (prev - 1 + currentImages.length) % currentImages.length);
+      } else if (currentImages.length > 1 && relativeX > 0.68) {
+        // Right edge: next photo
+        setPhotoIndex((prev) => (prev + 1) % currentImages.length);
+      } else {
+        // Center: open / expand detail
+        if (currentProduct) {
+          setDetailProduct(currentProduct);
+          setDetailPhotoIndex(photoIndex);
+        }
       }
       return;
     }
+
+    lastTapTime.current = Date.now();
 
     const threshold = 100;
     if (drag.x > threshold) {
@@ -246,9 +282,9 @@ export default function TinderView({ products }: { products: Product[] }) {
 
               {/* Active Top Card */}
               <div
-                className={`tinder-card active-card ${flyingAction ? `flying-${flyingAction}` : ''} ${
-                  isDragging ? 'dragging' : ''
-                }`}
+                className={`tinder-card active-card ${currentProduct.status === 'sold' ? 'sold-card' : ''} ${
+                  flyingAction ? `flying-${flyingAction}` : ''
+                } ${isDragging ? 'dragging' : ''}`}
                 style={{
                   transform: !flyingAction
                     ? `translate3d(${drag.x}px, ${drag.y}px, 0) rotate(${drag.x * 0.08}deg)`
@@ -308,31 +344,74 @@ export default function TinderView({ products }: { products: Product[] }) {
                     </span>
                   </div>
 
-                  {/* Left / Right tap zones for multiple photos */}
-                  {currentImages.length > 1 && (
-                    <>
-                      <button
-                        type="button"
-                        className="tinder-photo-nav left"
-                        onClick={handlePrevPhoto}
-                        aria-label="Foto anterior"
-                      >
-                        <ChevronLeft size={22} />
-                      </button>
-                      <button
-                        type="button"
-                        className="tinder-photo-nav right"
-                        onClick={handleNextPhoto}
-                        aria-label="Foto siguiente"
-                      >
-                        <ChevronRight size={22} />
-                      </button>
-                    </>
+                  {/* Prominent 'Ya se fue!' Watermark when Sold */}
+                  {currentProduct.status === 'sold' && (
+                    <div className="tinder-sold-watermark" aria-label="Ya se fue!">
+                      <span className="tinder-sold-stamp">Ya se fue!</span>
+                    </div>
                   )}
+
+                  {/* Edge Panels for Tinder-style Left / Right Photo Flipping & Center Tap */}
+                  <div className="tinder-photo-tap-zones">
+                    {currentImages.length > 1 ? (
+                      <>
+                        <button
+                          type="button"
+                          className="tinder-edge-panel left"
+                          onClick={handlePrevPhoto}
+                          aria-label="Foto anterior"
+                          title="Foto anterior"
+                        >
+                          <span className="edge-arrow-bubble left">
+                            <ChevronLeft size={22} />
+                          </span>
+                        </button>
+
+                        <div
+                          className="tinder-center-tap-panel"
+                          onClick={handleOpenDetail}
+                          title="Toca en el centro para ver detalles"
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Ver detalles del artículo"
+                        >
+                          <span className="center-tap-hint">Toca para ver detalles</span>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="tinder-edge-panel right"
+                          onClick={handleNextPhoto}
+                          aria-label="Foto siguiente"
+                          title="Foto siguiente"
+                        >
+                          <span className="edge-arrow-bubble right">
+                            <ChevronRight size={22} />
+                          </span>
+                        </button>
+                      </>
+                    ) : (
+                      <div
+                        className="tinder-center-tap-panel full"
+                        onClick={handleOpenDetail}
+                        title="Toca en el centro para ver detalles"
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Ver detalles del artículo"
+                      >
+                        <span className="center-tap-hint">Toca para ver detalles</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Card Editorial Copy as Gradient Overlay */}
-                <div className="tinder-card-copy-overlay">
+                <div
+                  className="tinder-card-copy-overlay"
+                  onClick={handleOpenDetail}
+                  role="button"
+                  tabIndex={0}
+                >
                   <div className="tinder-identity">
                     <h2>
                       <span className="item-name">{currentProduct.title}</span>
@@ -431,10 +510,10 @@ export default function TinderView({ products }: { products: Product[] }) {
 
               <button
                 type="button"
-                className="tinder-btn btn-like"
+                className={`tinder-btn btn-like ${currentProduct.status === 'sold' ? 'btn-sold' : ''}`}
                 onClick={() => executeSwipe('like')}
-                title="Lo quiero (Swipe Derecha)"
-                aria-label="Lo quiero"
+                title={currentProduct.status === 'sold' ? 'Este objeto ya se fue' : 'Lo quiero (Swipe Derecha)'}
+                aria-label={currentProduct.status === 'sold' ? 'Ya se fue' : 'Lo quiero'}
               >
                 <Heart size={28} />
               </button>
@@ -454,15 +533,19 @@ export default function TinderView({ products }: { products: Product[] }) {
 
         {/* Live Cart Toast on Right Swipe */}
         {cartToast && (
-          <div className="tinder-cart-toast" role="status">
+          <div className={`tinder-cart-toast ${cartToast.isSold ? 'toast-sold' : ''}`} role="status">
             <div className="tinder-toast-badge">
-              <Check size={16} />
+              {cartToast.isSold ? <X size={16} /> : <Check size={16} />}
             </div>
             <div className="tinder-toast-text">
-              <strong>¡Agregado a tu selección!</strong>
+              <strong>{cartToast.isSold ? '¡Este objeto ya se fue!' : '¡Agregado a tu selección!'}</strong>
               <span>{cartToast.title} · {formatPrice(cartToast.price)}</span>
             </div>
-            <ShoppingBag size={18} className="tinder-toast-bag" />
+            {cartToast.isSold ? (
+              <span className="sold-pill-mini">Ya se fue</span>
+            ) : (
+              <ShoppingBag size={18} className="tinder-toast-bag" />
+            )}
           </div>
         )}
 
@@ -511,7 +594,7 @@ export default function TinderView({ products }: { products: Product[] }) {
               <div className="tinder-modal-body">
                 {/* Image Gallery */}
                 <div className="tinder-modal-gallery">
-                  <div className="tinder-modal-main-img">
+                  <div className={`tinder-modal-main-img ${detailProduct.status === 'sold' ? 'sold-product' : ''}`}>
                     <img
                       src={
                         detailProduct.images?.[detailPhotoIndex] ||
@@ -523,6 +606,11 @@ export default function TinderView({ products }: { products: Product[] }) {
                     <span className={'status ' + detailProduct.status}>
                       {statusLabel[detailProduct.status]}
                     </span>
+                    {detailProduct.status === 'sold' && (
+                      <div className="catalog-sold-overlay" aria-hidden="true">
+                        <span className="catalog-sold-stamp">Ya se fue!</span>
+                      </div>
+                    )}
                   </div>
                   {detailProduct.images && detailProduct.images.length > 1 && (
                     <div className="tinder-modal-thumbs">
@@ -557,35 +645,44 @@ export default function TinderView({ products }: { products: Product[] }) {
                   </div>
 
                   <div className="tinder-modal-actions">
-                    <button
-                      type="button"
-                      className={'primary-action ' + (has(detailProduct.id) ? 'saved' : '')}
-                      onClick={() => {
-                        add(detailProduct);
-                        setCartToast({ title: detailProduct.title, price: detailProduct.price });
-                      }}
-                    >
-                      {has(detailProduct.id) ? (
-                        <>
-                          <Check size={18} /> En tu selección
-                        </>
-                      ) : (
-                        <>
-                          <Heart size={18} /> Lo quiero (sumar a selección)
-                        </>
-                      )}
-                    </button>
+                    {detailProduct.status === 'sold' ? (
+                      <div className="tinder-sold-notice">
+                        <span className="sold-notice-badge">Ya se fue!</span>
+                        <p>Este objeto ya encontró un nuevo hogar y no está disponible.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className={'primary-action ' + (has(detailProduct.id) ? 'saved' : '')}
+                          onClick={() => {
+                            add(detailProduct);
+                            setCartToast({ title: detailProduct.title, price: detailProduct.price, isSold: false });
+                          }}
+                        >
+                          {has(detailProduct.id) ? (
+                            <>
+                              <Check size={18} /> En tu selección
+                            </>
+                          ) : (
+                            <>
+                              <Heart size={18} /> Lo quiero (sumar a selección)
+                            </>
+                          )}
+                        </button>
 
-                    <button
-                      type="button"
-                      className="tinder-modal-maybe-btn"
-                      onClick={() => {
-                        addInterest(detailProduct);
-                        setDetailProduct(null);
-                      }}
-                    >
-                      <Sparkles size={16} /> Guardar en "Puede ser"
-                    </button>
+                        <button
+                          type="button"
+                          className="tinder-modal-maybe-btn"
+                          onClick={() => {
+                            addInterest(detailProduct);
+                            setDetailProduct(null);
+                          }}
+                        >
+                          <Sparkles size={16} /> Guardar en "Puede ser"
+                        </button>
+                      </>
+                    )}
 
                     <a
                       href={`https://wa.me/${whatsappPhone}?text=Hola%2C%20quiero%20consultar%20por%20este%20art%C3%ADculo%3A%20${encodeURIComponent(detailProduct.title)}%20(${encodeURIComponent(formatPrice(detailProduct.price))})%0A%0A%C2%BFSigue%20disponible%3F%20%C2%BFC%C3%B3mo%20podemos%20coordinar%3F`}
