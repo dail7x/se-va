@@ -37,9 +37,9 @@ const SelectionContext = createContext<Context>({
   moveToSelected: () => {},
 });
 
-function buildOfferUrl(selected: Product[]) {
+export function buildWhatsAppConsultUrl(selected: Product[]) {
   const lines = selected.map((product) => `• ${product.title} — ${formatPrice(product.price)}`).join('%0A');
-  return `https://wa.me/${whatsappPhone}?text=Hola%2C%20quiero%20hacer%20una%20oferta%20por%3A%0A${lines}%0A%0AMi%20oferta%20es%3A%20%24`;
+  return `https://wa.me/${whatsappPhone}?text=Hola%2C%20quiero%20consultar%20por%20estas%20cosas%3A%0A${lines}%0A%0A%C2%BFSiguen%20disponibles%3F%20%C2%BFC%C3%B3mo%20podemos%20coordinar%3F`;
 }
 
 function SelectionDock({ selected, clear }: { selected: Product[]; clear: () => void }) {
@@ -60,7 +60,7 @@ function SelectionDock({ selected, clear }: { selected: Product[]; clear: () => 
           {selected.slice(0, 3).map((product) => <img key={product.id} src={product.image} alt="" />)}
         </div>
       </div>
-      <a className="dock-cta" href={buildOfferUrl(selected)}><MessageCircle size={17} /> Hacer oferta</a>
+      <a className="dock-cta" href={buildWhatsAppConsultUrl(selected)}><MessageCircle size={17} /> Consultar por WhatsApp</a>
       <Link className="dock-secondary" href="/seleccion">Ver selección</Link>
       <button className="dock-clear" onClick={clear} aria-label="Vaciar selección"><X size={16} /></button>
     </aside>

@@ -14,8 +14,7 @@ export default function SelectionPage() {
 
   const total = selected.reduce((sum, product) => sum + product.price, 0);
   const lines = selected.map((product) => `• ${product.title} — ${formatPrice(product.price)}`).join('%0A');
-  const offerUrl = `https://wa.me/${whatsappPhone}?text=Hola%2C%20quiero%20hacer%20una%20oferta%20por%3A%0A${lines}%0A%0AMi%20oferta%20es%3A%20%24`;
-  const availabilityUrl = `https://wa.me/${whatsappPhone}?text=Hola%2C%20me%20interesan%20estas%20cosas%3A%0A${lines}%0A%0A%C2%BFSiguen%20disponibles%3F`;
+  const consultUrl = `https://wa.me/${whatsappPhone}?text=Hola%2C%20quiero%20consultar%20por%20estas%20cosas%3A%0A${lines}%0A%0A%C2%BFSiguen%20disponibles%3F%20%C2%BFC%C3%B3mo%20podemos%20coordinar%3F`;
 
   const interestLines = interests.map((product) => `• ${product.title} — ${formatPrice(product.price)}`).join('%0A');
   const interestUrl = `https://wa.me/${whatsappPhone}?text=Hola%2C%20estuve%20viendo%20estas%20cosas%20que%20me%20interesan%20(Puede%20ser)%3A%0A${interestLines}%0A%0A%C2%BFSiguen%20disponibles%3F`;
@@ -68,10 +67,9 @@ export default function SelectionPage() {
                 <strong>{formatPrice(total)}</strong>
               </div>
               <div className="selection-actions">
-                <a href={offerUrl} className="primary-action">
-                  <MessageCircle size={18} /> Hacer oferta por WhatsApp
+                <a href={consultUrl} className="primary-action">
+                  <MessageCircle size={18} /> Consultar por WhatsApp
                 </a>
-                <a href={availabilityUrl} className="offer-link">Preguntar disponibilidad</a>
                 <button className="clear-link" onClick={clear}>Vaciar selección</button>
               </div>
             </>
@@ -81,7 +79,7 @@ export default function SelectionPage() {
               <h2>Acá van tus cosas favoritas.</h2>
               <p>Guardá objetos mientras recorrés el catálogo o deslizás en el modo Swipe.</p>
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '18px' }}>
-                <Link href="/" className="primary-action" style={{ padding: '10px 20px', borderRadius: '100px' }}>Ver el catálogo →</Link>
+                <Link href="/catalogo" className="primary-action" style={{ padding: '10px 20px', borderRadius: '100px' }}>Ver el catálogo →</Link>
                 <Link href="/descubrir" className="whatsapp" style={{ padding: '10px 20px', borderRadius: '100px' }}>Modo Swipe 🔥</Link>
               </div>
             </div>

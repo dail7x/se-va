@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import {
+  ArrowLeft,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -10,6 +11,8 @@ import {
   Flame,
   Heart,
   HelpCircle,
+  Maximize2,
+  MessageCircle,
   RotateCcw,
   ShoppingBag,
   Sparkles,
@@ -18,6 +21,7 @@ import {
 import Header from './Header';
 import { Product, formatPrice, statusLabel } from './data';
 import { useSelection } from './SelectionProvider';
+import { whatsappPhone } from '../lib/site';
 
 type SwipeAction = 'like' | 'pass' | 'maybe';
 
@@ -27,7 +31,7 @@ type HistoryItem = {
 };
 
 export default function TinderView({ products }: { products: Product[] }) {
-  const { add, addInterest, selected, interests } = useSelection();
+  const { add, addInterest, selected, interests, has } = useSelection();
 
   // Filter available products
   const activeProducts = products.filter((p) => p.status !== 'sold');
@@ -36,12 +40,22 @@ export default function TinderView({ products }: { products: Product[] }) {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [photoIndex, setPhotoIndex] = useState(0);
 
+  // Cart toast & pop animation
+  const [cartToast, setCartToast] = useState<{ title: string; price: number } | null>(null);
+  const [likeParticle, setLikeParticle] = useState(false);
+
+  // Detail modal state
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+  const [detailPhotoIndex, setDetailPhotoIndex] = useState(0);
+
   // Drag physics state
   const [drag, setDrag] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [flyingAction, setFlyingAction] = useState<SwipeAction | null>(null);
 
   const dragStart = useRef<{ x: number; y: number } | null>(null);
+  const pointerDownTime = useRef<number>(0);
+  const movedRef = useRef<boolean>(false);
 
   const currentProduct = activeProducts[currentIndex];
   const nextProduct = activeProducts[currentIndex + 1];
@@ -52,6 +66,12 @@ export default function TinderView({ products }: { products: Product[] }) {
       ? currentProduct.images
       : [currentProduct.image]
     : [];
+
+  useEffect(() => {
+    if (!cartToast) return;
+    const timer = setTimeout(() => setCartToast(null), 2500);
+    return () => clearTimeout(timer);
+  }, [cartToast]);
 
   const handleNextPhoto = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -75,6 +95,9 @@ export default function TinderView({ products }: { products: Product[] }) {
 
       if (action === 'like') {
         add(currentProduct);
+        setCartToast({ title: currentProduct.title, price: currentProduct.price });
+        setLikeParticle(true);
+        setTimeout(() => setLikeParticle(false), 900);
       } else if (action === 'maybe') {
         addInterest(currentProduct);
       }
@@ -111,6 +134,8 @@ export default function TinderView({ products }: { products: Product[] }) {
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (flyingAction) return;
     dragStart.current = { x: e.clientX, y: e.clientY };
+    pointerDownTime.current = Date.now();
+    movedRef.current = false;
     setIsDragging(true);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
@@ -119,6 +144,9 @@ export default function TinderView({ products }: { products: Product[] }) {
     if (!isDragging || !dragStart.current || flyingAction) return;
     const dx = e.clientX - dragStart.current.x;
     const dy = e.clientY - dragStart.current.y;
+    if (Math.hypot(dx, dy) > 8) {
+      movedRef.current = true;
+    }
     setDrag({ x: dx, y: dy });
   };
 
@@ -126,7 +154,22 @@ export default function TinderView({ products }: { products: Product[] }) {
     if (!isDragging || flyingAction) return;
     setIsDragging(false);
 
-    const threshold = 110;
+    const dx = drag.x;
+    const dy = drag.y;
+    const distance = Math.hypot(dx, dy);
+
+    // If it was a clean tap (minimal distance and short duration), open product details!
+    if (!movedRef.current && distance < 12 && Date.now() - pointerDownTime.current < 450) {
+      setDrag({ x: 0, y: 0 });
+      dragStart.current = null;
+      if (currentProduct) {
+        setDetailProduct(currentProduct);
+        setDetailPhotoIndex(photoIndex);
+      }
+      return;
+    }
+
+    const threshold = 100;
     if (drag.x > threshold) {
       executeSwipe('like');
     } else if (drag.x < -threshold) {
@@ -299,13 +342,17 @@ export default function TinderView({ products }: { products: Product[] }) {
                   {currentProduct.description && (
                     <p className="tinder-desc">{currentProduct.description}</p>
                   )}
-                  <Link
-                    href={`/producto/${currentProduct.id}`}
+                  <button
+                    type="button"
                     className="tinder-detail-link"
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDetailProduct(currentProduct);
+                      setDetailPhotoIndex(photoIndex);
+                    }}
                   >
-                    Ver detalles y fotos ampliadas <ExternalLink size={12} />
-                  </Link>
+                    Ver detalles y fotos completas <ExternalLink size={12} />
+                  </button>
                 </div>
               </div>
             </div>
@@ -339,7 +386,7 @@ export default function TinderView({ products }: { products: Product[] }) {
                 <button onClick={handleReset} className="tinder-btn-reset">
                   <RotateCcw size={16} /> Empezar a deslizar de nuevo
                 </button>
-                <Link href="/" className="finished-catalog-link">
+                <Link href="/catalogo" className="finished-catalog-link">
                   Volver al catálogo tradicional
                 </Link>
               </div>
@@ -393,6 +440,164 @@ export default function TinderView({ products }: { products: Product[] }) {
             </div>
           )}
         </div>
+
+        {/* Live Cart Toast on Right Swipe */}
+        {cartToast && (
+          <div className="tinder-cart-toast" role="status">
+            <div className="tinder-toast-badge">
+              <Check size={16} />
+            </div>
+            <div className="tinder-toast-text">
+              <strong>¡Agregado a tu selección!</strong>
+              <span>{cartToast.title} · {formatPrice(cartToast.price)}</span>
+            </div>
+            <ShoppingBag size={18} className="tinder-toast-bag" />
+          </div>
+        )}
+
+        {/* Celebratory like particle animation */}
+        {likeParticle && (
+          <div className="tinder-like-particle" aria-hidden="true">
+            <Heart size={36} fill="#ed7d56" color="#ed7d56" />
+            <span>+1 al carrito</span>
+          </div>
+        )}
+
+        {/* Product Detail Modal Sheet */}
+        {detailProduct && (
+          <div
+            className="tinder-detail-modal-backdrop"
+            onClick={() => setDetailProduct(null)}
+          >
+            <div
+              className="tinder-detail-modal-sheet"
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-label={detailProduct.title}
+            >
+              {/* Modal Sticky Top Header */}
+              <div className="tinder-modal-header">
+                <button
+                  type="button"
+                  className="tinder-modal-back-btn"
+                  onClick={() => setDetailProduct(null)}
+                >
+                  <ArrowLeft size={18} />
+                  <span>Volver al modo swipe</span>
+                </button>
+                <button
+                  type="button"
+                  className="tinder-modal-close-icon"
+                  onClick={() => setDetailProduct(null)}
+                  aria-label="Cerrar y volver al modo swipe"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="tinder-modal-body">
+                {/* Image Gallery */}
+                <div className="tinder-modal-gallery">
+                  <div className="tinder-modal-main-img">
+                    <img
+                      src={
+                        detailProduct.images?.[detailPhotoIndex] ||
+                        detailProduct.images?.[0] ||
+                        detailProduct.image
+                      }
+                      alt={detailProduct.title}
+                    />
+                    <span className={'status ' + detailProduct.status}>
+                      {statusLabel[detailProduct.status]}
+                    </span>
+                  </div>
+                  {detailProduct.images && detailProduct.images.length > 1 && (
+                    <div className="tinder-modal-thumbs">
+                      {detailProduct.images.map((img, idx) => (
+                        <button
+                          key={img + idx}
+                          type="button"
+                          className={`tinder-modal-thumb ${idx === detailPhotoIndex ? 'active' : ''}`}
+                          onClick={() => setDetailPhotoIndex(idx)}
+                          aria-label={`Ver foto ${idx + 1}`}
+                        >
+                          <img src={img} alt="" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Product Copy and Actions */}
+                <div className="tinder-modal-info">
+                  <p className="category">{detailProduct.category}</p>
+                  <h2>{detailProduct.title}</h2>
+                  <div className="detail-price">{formatPrice(detailProduct.price)}</div>
+
+                  {detailProduct.description && (
+                    <p className="description">{detailProduct.description}</p>
+                  )}
+
+                  <div className="detail-note">
+                    <b>Retiro o envío</b>
+                    <span>Armá tu selección o consultanos directamente por WhatsApp.</span>
+                  </div>
+
+                  <div className="tinder-modal-actions">
+                    <button
+                      type="button"
+                      className={'primary-action ' + (has(detailProduct.id) ? 'saved' : '')}
+                      onClick={() => {
+                        add(detailProduct);
+                        setCartToast({ title: detailProduct.title, price: detailProduct.price });
+                      }}
+                    >
+                      {has(detailProduct.id) ? (
+                        <>
+                          <Check size={18} /> En tu selección
+                        </>
+                      ) : (
+                        <>
+                          <Heart size={18} /> Lo quiero (sumar a selección)
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="tinder-modal-maybe-btn"
+                      onClick={() => {
+                        addInterest(detailProduct);
+                        setDetailProduct(null);
+                      }}
+                    >
+                      <Sparkles size={16} /> Guardar en "Puede ser"
+                    </button>
+
+                    <a
+                      href={`https://wa.me/${whatsappPhone}?text=Hola%2C%20quiero%20consultar%20por%20este%20art%C3%ADculo%3A%20${encodeURIComponent(detailProduct.title)}%20(${encodeURIComponent(formatPrice(detailProduct.price))})%0A%0A%C2%BFSigue%20disponible%3F%20%C2%BFC%C3%B3mo%20podemos%20coordinar%3F`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="whatsapp"
+                    >
+                      <MessageCircle size={18} /> Consultar por WhatsApp
+                    </a>
+
+                    <button
+                      type="button"
+                      className="tinder-modal-bottom-back"
+                      onClick={() => setDetailProduct(null)}
+                    >
+                      <ArrowLeft size={16} /> Cerrar y seguir deslizando
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </>
   );

@@ -105,6 +105,9 @@ export default function AdminDashboard() {
       is_public: product.is_public,
     });
     setManualImage('');
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 
   function addImage(url: string) {
@@ -186,7 +189,7 @@ export default function AdminDashboard() {
       <header className="admin-header">
         <Link className="logo" href="/">SE VA<span>!</span></Link>
         <span>Panel de casa</span>
-        <Link href="/">Ver catálogo →</Link>
+        <Link href="/catalogo">Ver catálogo →</Link>
         <button className="icon-button" onClick={signOut} aria-label="Salir"><LogOut size={17}/></button>
       </header>
       <div className="admin-inner">

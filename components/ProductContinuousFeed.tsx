@@ -144,7 +144,7 @@ export default function ProductContinuousFeed({
               <button onClick={scrollToTop} className="feed-top-btn">
                 <ArrowUp size={16} /> Volver arriba
               </button>
-              <Link href="/" className="primary-action" style={{ padding: '10px 22px', borderRadius: '100px' }}>
+              <Link href="/catalogo" className="primary-action" style={{ padding: '10px 22px', borderRadius: '100px' }}>
                 Ir al catálogo
               </Link>
               <Link href="/descubrir" className="whatsapp" style={{ padding: '10px 22px', borderRadius: '100px' }}>

@@ -17,6 +17,9 @@ export default function Header({ onSearch }: { onSearch?: () => void }) {
             <Search size={20} />
           </button>
         )}
+        <Link href="/catalogo" className="header-nav-link" title="Ver todo el catálogo">
+          Catálogo
+        </Link>
         <Link href="/descubrir" className="swipe-header-link" title="Descubrir objetos deslizando">
           <Flame size={18} />
           <span>Modo Swipe</span>
