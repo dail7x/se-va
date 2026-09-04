@@ -55,6 +55,29 @@ export default function TinderView({ products }: { products: Product[] }) {
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
   const [detailPhotoIndex, setDetailPhotoIndex] = useState(0);
 
+  // First-visit onboarding tutorial state
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  useEffect(() => {
+    try {
+      const seen = localStorage.getItem('seva_swipe_tutorial_seen');
+      if (seen !== 'true') {
+        setShowTutorial(true);
+      }
+    } catch {
+      // In case localStorage is blocked/restricted
+    }
+  }, []);
+
+  const handleDismissTutorial = () => {
+    try {
+      localStorage.setItem('seva_swipe_tutorial_seen', 'true');
+    } catch {
+      // ignore
+    }
+    setShowTutorial(false);
+  };
+
   // Drag physics state
   const [drag, setDrag] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -272,6 +295,16 @@ export default function TinderView({ products }: { products: Product[] }) {
             <span>👈 <b>Paso</b></span>
             <span className="sep">·</span>
             <span className="hint-maybe">⭐ <b>Puede ser</b></span>
+            <span className="sep">·</span>
+            <button
+              type="button"
+              className="tinder-hint-help-btn"
+              onClick={() => setShowTutorial(true)}
+              title="Ver cómo funciona"
+            >
+              <HelpCircle size={13} />
+              <span>¿Cómo funciona?</span>
+            </button>
           </p>
         </div>
 
@@ -783,6 +816,109 @@ export default function TinderView({ products }: { products: Product[] }) {
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* First-visit onboarding tutorial overlay */}
+        {showTutorial && (
+          <div
+            className="tinder-tutorial-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="tinder-tutorial-title"
+          >
+            <div className="tinder-tutorial-backdrop" onClick={handleDismissTutorial} />
+            <div className="tinder-tutorial-modal">
+              <button
+                type="button"
+                className="tinder-tutorial-close"
+                onClick={handleDismissTutorial}
+                aria-label="Cerrar guía"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="tinder-tutorial-header">
+                <span className="tinder-tutorial-badge">
+                  <Sparkles size={13} /> ¡Bienvenido a SE VA!
+                </span>
+                <h2 id="tinder-tutorial-title">¿Cómo funciona?</h2>
+                <p className="tinder-tutorial-subtitle">
+                  Descubrí cada objeto a tu ritmo deslizando o usando los botones:
+                </p>
+              </div>
+
+              <div className="tinder-tutorial-cards">
+                {/* Card 1: Right / Heart -> Cart */}
+                <div className="tutorial-item tutorial-item-like">
+                  <div className="tutorial-icon-col">
+                    <div className="tutorial-icon-bubble like">
+                      <Heart size={22} />
+                    </div>
+                  </div>
+                  <div className="tutorial-text-col">
+                    <div className="tutorial-item-headline">
+                      <h3>Deslizá a la derecha 👉</h3>
+                      <span className="tutorial-pill pill-like">¡Lo quiero!</span>
+                    </div>
+                    <p>
+                      O pulsá el <strong>corazón (❤️)</strong>. Indica que te gusta y <strong>lo añade a tu carrito de compras</strong> (Mi selección) para luego consultar o coordinar por WhatsApp.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Card 2: Left / X -> Pass */}
+                <div className="tutorial-item tutorial-item-pass">
+                  <div className="tutorial-icon-col">
+                    <div className="tutorial-icon-bubble pass">
+                      <X size={22} />
+                    </div>
+                  </div>
+                  <div className="tutorial-text-col">
+                    <div className="tutorial-item-headline">
+                      <h3>Deslizá a la izquierda 👈</h3>
+                      <span className="tutorial-pill pill-pass">Paso</span>
+                    </div>
+                    <p>
+                      O pulsá la <strong>cruz (✕)</strong>. Indica que no es para vos y pasa inmediatamente al siguiente artículo.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Card 3: Tips for Center (details) and Edges (photos) */}
+                <div className="tutorial-item tutorial-item-tips">
+                  <div className="tutorial-tips-grid">
+                    <div className="tutorial-mini-tip">
+                      <span className="mini-tip-tag">🔍 Centro</span>
+                      <p>Tocá el <strong>centro de la foto</strong> para ver medidas, estado y fotos ampliadas.</p>
+                    </div>
+                    <div className="tutorial-mini-tip">
+                      <span className="mini-tip-tag">📷 Costados</span>
+                      <p>Tocá los <strong>bordes</strong> de la imagen para pasar las fotos del artículo.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="tinder-tutorial-actions">
+                <button
+                  type="button"
+                  className="tutorial-start-btn"
+                  onClick={handleDismissTutorial}
+                >
+                  <span>Iniciar</span>
+                  <ChevronRight size={18} />
+                </button>
+                <Link
+                  href="/catalogo"
+                  className="tutorial-catalog-btn"
+                  onClick={handleDismissTutorial}
+                >
+                  <LayoutGrid size={16} />
+                  <span>Ver todos los artículos en Modo Catálogo</span>
+                </Link>
               </div>
             </div>
           </div>
