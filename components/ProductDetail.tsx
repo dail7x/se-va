@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronLeft, ChevronRight, Maximize2, MessageCircle, Share2 } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Clock, Maximize2, MessageCircle, Share2, Sparkles } from 'lucide-react';
 import { useState, useRef } from 'react';
 import { Product, formatPrice, statusLabel } from './data';
 import { useSelection } from './SelectionProvider';
@@ -8,7 +8,7 @@ import ImageLightbox from './ImageLightbox';
 import { whatsappPhone } from '../lib/site';
 
 export default function ProductDetail({ product }: { product: Product }) {
-  const { add, has } = useSelection();
+  const { add, addInterest, has } = useSelection();
   const images = product.images?.length ? product.images : [product.image];
   const [activeImage, setActiveImage] = useState(images[0]);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -169,6 +169,28 @@ export default function ProductDetail({ product }: { product: Product }) {
             >
               <MessageCircle size={18} /> Consultar por WhatsApp
             </a>
+          </div>
+        ) : product.status === 'reserved' ? (
+          <div className="detail-actions">
+            <div className="reserved-notice-box">
+              <span className="reserved-notice-pill">Casi se va (Reservado)</span>
+              <p>Este objeto está reservado, pero podés consultar para entrar en lista de espera por si la persona no concreta.</p>
+            </div>
+            <a
+              href={`https://wa.me/${whatsappPhone}?text=Hola%2C%20vi%20que%20el%20art%C3%ADculo%20"${encodeURIComponent(product.title)}"%20est%C3%A1%20reservado%20("Casi%20se%20va").%20%C2%BFMe%20podr%C3%ADas%20anotar%20en%20lista%20de%20espera%20por%20si%20se%20libera%3F%20%C2%A1Muchas%20gracias!`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="whatsapp reserved-wa-btn"
+            >
+              <Clock size={18} /> Consultar / Lista de espera por WhatsApp
+            </a>
+            <button
+              type="button"
+              className="primary-action reserved-interest-btn"
+              onClick={() => addInterest(product)}
+            >
+              <Sparkles size={16} /> Guardar en Puede ser / Espera
+            </button>
           </div>
         ) : (
           <p className="gone">

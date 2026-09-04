@@ -7,6 +7,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Clock,
   ExternalLink,
   Flame,
   Heart,
@@ -26,10 +27,10 @@ import { whatsappPhone } from '../lib/site';
 
 type SwipeAction = 'like' | 'pass' | 'maybe';
 
-type HistoryItem = {
+interface HistoryItem {
   product: Product;
   action: SwipeAction;
-};
+}
 
 export default function TinderView({ products }: { products: Product[] }) {
   const { add, addInterest, selected, interests, has } = useSelection();
@@ -42,7 +43,12 @@ export default function TinderView({ products }: { products: Product[] }) {
   const [photoIndex, setPhotoIndex] = useState(0);
 
   // Cart toast & pop animation
-  const [cartToast, setCartToast] = useState<{ title: string; price: number; isSold?: boolean } | null>(null);
+  const [cartToast, setCartToast] = useState<{
+    title: string;
+    price: number;
+    isSold?: boolean;
+    isReserved?: boolean;
+  } | null>(null);
   const [likeParticle, setLikeParticle] = useState(false);
 
   // Detail modal state
@@ -57,6 +63,7 @@ export default function TinderView({ products }: { products: Product[] }) {
   const dragStart = useRef<{ x: number; y: number } | null>(null);
   const pointerDownTime = useRef<number>(0);
   const movedRef = useRef<boolean>(false);
+  const capturedRef = useRef<boolean>(false);
 
   const currentProduct = activeProducts[currentIndex];
   const nextProduct = activeProducts[currentIndex + 1];
@@ -113,6 +120,9 @@ export default function TinderView({ products }: { products: Product[] }) {
       if (action === 'like') {
         if (currentProduct.status === 'sold') {
           setCartToast({ title: currentProduct.title, price: currentProduct.price, isSold: true });
+        } else if (currentProduct.status === 'reserved') {
+          addInterest(currentProduct);
+          setCartToast({ title: currentProduct.title, price: currentProduct.price, isReserved: true });
         } else {
           add(currentProduct);
           setCartToast({ title: currentProduct.title, price: currentProduct.price, isSold: false });
@@ -157,16 +167,23 @@ export default function TinderView({ products }: { products: Product[] }) {
     dragStart.current = { x: e.clientX, y: e.clientY };
     pointerDownTime.current = Date.now();
     movedRef.current = false;
+    capturedRef.current = false;
     setIsDragging(true);
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDragging || !dragStart.current || flyingAction) return;
     const dx = e.clientX - dragStart.current.x;
     const dy = e.clientY - dragStart.current.y;
-    if (Math.hypot(dx, dy) > 8) {
+    const dist = Math.hypot(dx, dy);
+    if (dist > 14) {
       movedRef.current = true;
+      if (!capturedRef.current && (e.currentTarget as HTMLElement).setPointerCapture) {
+        try {
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+          capturedRef.current = true;
+        } catch {}
+      }
     }
     setDrag({ x: dx, y: dy });
   };
@@ -175,23 +192,31 @@ export default function TinderView({ products }: { products: Product[] }) {
     if (!isDragging || flyingAction) return;
     setIsDragging(false);
 
+    if (capturedRef.current && (e.currentTarget as HTMLElement).releasePointerCapture) {
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {}
+      capturedRef.current = false;
+    }
+
     const dx = drag.x;
     const dy = drag.y;
     const distance = Math.hypot(dx, dy);
 
-    // If it was a clean tap (minimal distance and short duration)
-    if (!movedRef.current && distance < 12 && Date.now() - pointerDownTime.current < 450) {
+    // If it was a clean tap (slop <= 20px and duration <= 500ms)
+    if (distance < 20 && Date.now() - pointerDownTime.current < 500) {
       setDrag({ x: 0, y: 0 });
+      const startX = dragStart.current?.x ?? e.clientX;
       dragStart.current = null;
       lastTapTime.current = Date.now();
 
       const rect = e.currentTarget.getBoundingClientRect();
-      const relativeX = (e.clientX - rect.left) / rect.width;
+      const relativeX = (startX - rect.left) / rect.width;
 
-      if (currentImages.length > 1 && relativeX < 0.32) {
+      if (currentImages.length > 1 && relativeX < 0.30) {
         // Left edge: previous photo
         setPhotoIndex((prev) => (prev - 1 + currentImages.length) % currentImages.length);
-      } else if (currentImages.length > 1 && relativeX > 0.68) {
+      } else if (currentImages.length > 1 && relativeX > 0.70) {
         // Right edge: next photo
         setPhotoIndex((prev) => (prev + 1) % currentImages.length);
       } else {
@@ -374,9 +399,7 @@ export default function TinderView({ products }: { products: Product[] }) {
                           role="button"
                           tabIndex={0}
                           aria-label="Ver detalles del artículo"
-                        >
-                          <span className="center-tap-hint">Toca para ver detalles</span>
-                        </div>
+                        />
 
                         <button
                           type="button"
@@ -398,9 +421,7 @@ export default function TinderView({ products }: { products: Product[] }) {
                         role="button"
                         tabIndex={0}
                         aria-label="Ver detalles del artículo"
-                      >
-                        <span className="center-tap-hint">Toca para ver detalles</span>
-                      </div>
+                      />
                     )}
                   </div>
                 </div>
@@ -507,13 +528,24 @@ export default function TinderView({ products }: { products: Product[] }) {
                 <Sparkles size={24} />
                 <span className="btn-label">Puede ser</span>
               </button>
-
-              <button
+               <button
                 type="button"
                 className={`tinder-btn btn-like ${currentProduct.status === 'sold' ? 'btn-sold' : ''}`}
                 onClick={() => executeSwipe('like')}
-                title={currentProduct.status === 'sold' ? 'Este objeto ya se fue' : 'Lo quiero (Swipe Derecha)'}
-                aria-label={currentProduct.status === 'sold' ? 'Ya se fue' : 'Lo quiero'}
+                title={
+                  currentProduct.status === 'sold'
+                    ? 'Este objeto ya se fue'
+                    : currentProduct.status === 'reserved'
+                    ? 'Anotarme en lista de espera (Swipe Derecha)'
+                    : 'Lo quiero (Swipe Derecha)'
+                }
+                aria-label={
+                  currentProduct.status === 'sold'
+                    ? 'Ya se fue'
+                    : currentProduct.status === 'reserved'
+                    ? 'Lista de espera'
+                    : 'Lo quiero'
+                }
               >
                 <Heart size={28} />
               </button>
@@ -533,16 +565,39 @@ export default function TinderView({ products }: { products: Product[] }) {
 
         {/* Live Cart Toast on Right Swipe */}
         {cartToast && (
-          <div className={`tinder-cart-toast ${cartToast.isSold ? 'toast-sold' : ''}`} role="status">
+          <div
+            className={`tinder-cart-toast ${
+              cartToast.isSold ? 'toast-sold' : cartToast.isReserved ? 'toast-reserved' : ''
+            }`}
+            role="status"
+          >
             <div className="tinder-toast-badge">
-              {cartToast.isSold ? <X size={16} /> : <Check size={16} />}
+              {cartToast.isSold ? (
+                <X size={16} />
+              ) : cartToast.isReserved ? (
+                <Clock size={16} />
+              ) : (
+                <Check size={16} />
+              )}
             </div>
             <div className="tinder-toast-text">
-              <strong>{cartToast.isSold ? '¡Este objeto ya se fue!' : '¡Agregado a tu selección!'}</strong>
-              <span>{cartToast.title} · {formatPrice(cartToast.price)}</span>
+              <strong>
+                {cartToast.isSold
+                  ? '¡Este objeto ya se fue!'
+                  : cartToast.isReserved
+                  ? '¡Anotado en lista de espera!'
+                  : '¡Agregado a tu selección!'}
+              </strong>
+              <span>
+                {cartToast.isReserved
+                  ? `${cartToast.title} · Te avisamos si se libera`
+                  : `${cartToast.title} · ${formatPrice(cartToast.price)}`}
+              </span>
             </div>
             {cartToast.isSold ? (
               <span className="sold-pill-mini">Ya se fue</span>
+            ) : cartToast.isReserved ? (
+              <span className="reserved-pill-mini">Casi se va</span>
             ) : (
               <ShoppingBag size={18} className="tinder-toast-bag" />
             )}
@@ -650,6 +705,32 @@ export default function TinderView({ products }: { products: Product[] }) {
                         <span className="sold-notice-badge">Ya se fue!</span>
                         <p>Este objeto ya encontró un nuevo hogar y no está disponible.</p>
                       </div>
+                    ) : detailProduct.status === 'reserved' ? (
+                      <>
+                        <div className="tinder-reserved-notice">
+                          <span className="reserved-notice-pill">Casi se va (Reservado)</span>
+                          <p>Este objeto está reservado, pero podés consultar para entrar en lista de espera por si quien lo reservó no concreta la compra.</p>
+                        </div>
+                        <a
+                          href={`https://wa.me/${whatsappPhone}?text=Hola%2C%20vi%20que%20el%20art%C3%ADculo%20"${encodeURIComponent(detailProduct.title)}"%20est%C3%A1%20reservado%20("Casi%20se%20va").%20%C2%BFMe%20podr%C3%ADas%20anotar%20en%20lista%20de%20espera%20por%20si%20se%20libera%3F%20%C2%A1Muchas%20gracias!`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="whatsapp reserved-wa-btn"
+                        >
+                          <Clock size={18} /> Consultar / Lista de espera por WhatsApp
+                        </a>
+                        <button
+                          type="button"
+                          className="tinder-modal-maybe-btn"
+                          onClick={() => {
+                            addInterest(detailProduct);
+                            setCartToast({ title: detailProduct.title, price: detailProduct.price, isReserved: true });
+                            setDetailProduct(null);
+                          }}
+                        >
+                          <Sparkles size={16} /> Guardar en "Puede ser" / Espera
+                        </button>
+                      </>
                     ) : (
                       <>
                         <button

@@ -2,9 +2,10 @@
 
 import { useState, useRef } from 'react';
 import Link from 'next/link';
-import { Check, ChevronLeft, ChevronRight, ShoppingBag } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Clock, ShoppingBag } from 'lucide-react';
 import { Product, formatPrice, statusLabel } from './data';
 import { useSelection } from './SelectionProvider';
+import { whatsappPhone } from '../lib/site';
 
 export default function ProductCard({ product }: { product: Product }) {
   const { add, has } = useSelection();
@@ -154,6 +155,19 @@ export default function ProductCard({ product }: { product: Product }) {
             {saved ? <Check size={17} /> : <ShoppingBag size={17} />}
             {saved ? 'En selección' : 'Lo quiero'}
           </button>
+        )}
+        {product.status === 'reserved' && (
+          <a
+            href={`https://wa.me/${whatsappPhone}?text=Hola%2C%20vi%20que%20el%20art%C3%ADculo%20"${encodeURIComponent(product.title)}"%20est%C3%A1%20reservado%20("Casi%20se%20va").%20Me%20gustar%C3%ADa%20estar%20en%20lista%20de%20espera%20por%20si%20se%20libera.%20%C2%A1Gracias!`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="reserved-waitlist-btn"
+            title="Anotarme en lista de espera por si se libera"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Clock size={15} />
+            <span>Lista de espera</span>
+          </a>
         )}
       </div>
     </article>

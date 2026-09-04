@@ -131,6 +131,11 @@ export default function ImageLightbox({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).tagName !== 'IMG' && Math.abs(dragOffset) < 6) {
+            onClose();
+          }
+        }}
       >
         {total > 1 && (
           <button
@@ -152,13 +157,23 @@ export default function ImageLightbox({
             transform: !isZoomed ? `translateX(${dragOffset}px)` : undefined,
             transition: isDragging ? 'none' : 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)',
           }}
-          onClick={() => !isDragging && setIsZoomed(!isZoomed)}
+          onClick={(e) => {
+            if ((e.target as HTMLElement).tagName !== 'IMG' && Math.abs(dragOffset) < 6) {
+              onClose();
+            }
+          }}
         >
           <img
             src={images[currentIndex]}
             alt={`${title} - Foto ${currentIndex + 1}`}
             className="lightbox-img"
             draggable={false}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isDragging && Math.abs(dragOffset) < 6) {
+                setIsZoomed(!isZoomed);
+              }
+            }}
           />
         </div>
 

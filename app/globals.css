@@ -123,57 +123,74 @@
 }
 .lightbox-header {
   height: 64px;
-  padding: 0 24px;
+  padding: 0 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   color: #fff;
-  z-index: 10;
+  z-index: 20;
+  width: 100%;
+  box-sizing: border-box;
 }
 .lightbox-info {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+  margin-right: 14px;
 }
 .lightbox-counter {
-  background: rgba(255,255,255,.14);
-  padding: 4px 12px;
+  background: rgba(255,255,255,.16);
+  padding: 5px 12px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: .5px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .lightbox-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: #eae6dd;
-  max-width: 400px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 .lightbox-tools {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 .lightbox-tool-btn {
   width: 42px;
   height: 42px;
   border-radius: 50%;
   border: 0;
-  background: rgba(255,255,255,.12);
+  background: rgba(255,255,255,.14);
   color: #fff;
   display: grid;
   place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
   transition: background .18s ease, transform .18s ease;
 }
 .lightbox-tool-btn:hover {
-  background: rgba(255,255,255,.24);
+  background: rgba(255,255,255,.26);
   transform: scale(1.05);
 }
-.lightbox-close:hover {
-  background: rgba(237, 125, 86, .85);
+.lightbox-close {
+  background: rgba(255,255,255,.25);
+  border: 1.5px solid rgba(255,255,255,.5);
+}
+.lightbox-close:hover,
+.lightbox-close:active {
+  background: var(--orange);
+  border-color: var(--orange);
 }
 
 .lightbox-stage {
@@ -724,28 +741,6 @@ body:has(.tinder-page) {
   width: 100%;
 }
 
-.center-tap-hint {
-  opacity: 0;
-  pointer-events: none;
-  background: rgba(20, 24, 20, 0.75);
-  backdrop-filter: blur(6px);
-  color: rgba(255, 255, 255, 0.95);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: opacity 0.25s ease, transform 0.25s ease;
-  transform: translateY(6px);
-}
-
-.tinder-center-tap-panel:hover .center-tap-hint {
-  opacity: 0.88;
-  transform: translateY(0);
-}
-
 /* Card Editorial Copy as Gradient Overlay */
 .tinder-card-copy-overlay {
   position: absolute;
@@ -801,18 +796,33 @@ body:has(.tinder-page) {
   text-shadow: 0 1px 2px rgba(0,0,0,0.4);
 }
 .tinder-detail-link {
-  font-size: 11px;
-  color: #fcebd9;
-  text-decoration: underline;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  background: transparent;
+  border: 1.5px solid rgba(255, 255, 255, 0.75);
+  border-radius: 999px;
+  padding: 6px 14px;
+  color: #ffffff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
   font-weight: 600;
-  opacity: 0.9;
+  letter-spacing: 0.2px;
+  text-decoration: none;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: all 0.2s ease;
+  margin-top: 4px;
+  width: fit-content;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
-.tinder-detail-link:hover {
-  opacity: 1;
-  color: #fff;
+.tinder-detail-link:hover,
+.tinder-detail-link:active {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: #ffffff;
+  color: #ffffff;
+  transform: translateY(-1px);
 }
 
 /* Tinder Action Controls Toolbar */
@@ -1075,6 +1085,13 @@ body:has(.tinder-page) {
   }
   .lightbox-header {
     padding: 0 14px;
+  }
+  .lightbox-title {
+    display: none;
+  }
+  .lightbox-close {
+    width: 44px;
+    height: 44px;
   }
   .lightbox-nav-btn {
     width: 44px;
@@ -1528,6 +1545,59 @@ body:has(.tinder-page) {
   transform: rotate(-7deg);
   text-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.35);
 }
+
+/* Reserved status button and notice in Catalog & Detail */
+.reserved-waitlist-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(245, 217, 130, 0.28);
+  border: 1.5px solid #d4a838;
+  color: #7c5806;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 6px 13px;
+  border-radius: 999px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.reserved-waitlist-btn:hover {
+  background: #f5d982;
+  color: var(--ink);
+}
+
+.reserved-notice-box {
+  background: #fdf9ee;
+  border: 1px solid #ebd494;
+  border-radius: 14px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.reserved-notice-pill {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #8f6507;
+  background: rgba(245, 217, 130, 0.45);
+  padding: 3px 10px;
+  border-radius: 999px;
+  width: fit-content;
+}
+.reserved-notice-box p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.primary-action.reserved-interest-btn {
+  background: #6b765d;
+}
 .card-photo-nav,
 .gallery-nav {
   position: absolute;
@@ -1730,6 +1800,24 @@ body:has(.tinder-page) {
   opacity: 0.55;
   filter: grayscale(0.5);
 }
+.tinder-cart-toast.toast-reserved {
+  background: #252219;
+  border: 1px solid rgba(245, 217, 130, 0.45);
+}
+.tinder-cart-toast.toast-reserved .tinder-toast-badge {
+  background: rgba(245, 217, 130, 0.3);
+  color: #f5d982;
+}
+.reserved-pill-mini {
+  background: rgba(245, 217, 130, 0.25);
+  color: #faeab8;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 217, 130, 0.35);
+  white-space: nowrap;
+}
 
 .tinder-like-particle {
   position: fixed;
@@ -1922,6 +2010,40 @@ body:has(.tinder-page) {
   margin: 0;
   font-size: 13px;
   color: var(--muted);
+}
+.tinder-reserved-notice {
+  background: rgba(245, 217, 130, 0.15);
+  border: 1px solid rgba(212, 168, 56, 0.35);
+  border-radius: 14px;
+  padding: 14px 18px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.tinder-reserved-notice .reserved-notice-pill {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #8f6507;
+  background: rgba(245, 217, 130, 0.5);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.tinder-reserved-notice p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.whatsapp.reserved-wa-btn {
+  background: #fdf2d8;
+  color: #724c04;
+  border: 1px solid #ecd08c;
+}
+.whatsapp.reserved-wa-btn:hover {
+  background: #fce7b8;
 }
 .tinder-modal-maybe-btn {
   min-height: 48px;
