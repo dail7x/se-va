@@ -11,6 +11,7 @@ import {
   Flame,
   Heart,
   HelpCircle,
+  LayoutGrid,
   Maximize2,
   MessageCircle,
   RotateCcw,
@@ -438,6 +439,16 @@ export default function TinderView({ products }: { products: Product[] }) {
                 <Heart size={28} />
               </button>
             </div>
+          )}
+
+          {/* Bottom Footer Button to switch to Modo Catálogo */}
+          {!isFinished && (
+            <footer className="tinder-footer">
+              <Link href="/catalogo" className="tinder-catalog-switch-btn" title="Ver artículos en Modo Catálogo">
+                <LayoutGrid size={15} />
+                <span>Ver artículos en Modo Catálogo</span>
+              </Link>
+            </footer>
           )}
         </div>
 
