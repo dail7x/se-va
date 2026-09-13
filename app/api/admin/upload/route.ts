@@ -1,45 +1,54 @@
-import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'node:crypto';
+import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '../../../../lib/admin';
+import { getDb } from '../../../../lib/db';
 
-const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'product-images';
-const maxSize = 5 * 1024 * 1024;
-const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
-
-function extensionFor(type: string) {
-  if (type === 'image/png') return 'png';
-  if (type === 'image/webp') return 'webp';
-  if (type === 'image/gif') return 'gif';
-  return 'jpg';
-}
+const maxSize = 8 * 1024 * 1024; // 8MB safety limit (frontend will compress to ~100KB)
 
 export async function POST(request: NextRequest) {
   const admin = await requireAdmin(request);
-  if (!admin.ok) return NextResponse.json({ error: admin.error }, { status: admin.status });
-
-  const formData = await request.formData();
-  const file = formData.get('file');
-
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: 'No image file provided' }, { status: 400 });
+  if (!admin.ok) {
+    return NextResponse.json({ error: admin.error }, { status: admin.status });
   }
 
-  if (!allowedTypes.has(file.type)) {
-    return NextResponse.json({ error: 'Usá JPG, PNG, WebP o GIF.' }, { status: 400 });
+  try {
+    const formData = await request.formData();
+    const file = formData.get('file');
+
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: 'No se subió ningún archivo' }, { status: 400 });
+    }
+
+    if (file.size > maxSize) {
+      return NextResponse.json({ error: 'La imagen no puede superar 8 MB' }, { status: 400 });
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64 = buffer.toString('base64');
+    const mimeType = file.type || 'image/webp';
+
+    const imageId = crypto.randomUUID();
+    const storagePath = `/api/images/${imageId}`;
+
+    const db = getDb();
+    // Insert with temporary product_id = 'upload_stage' until assigned to a product
+    await db.execute({
+      sql: `
+        INSERT INTO product_images (id, product_id, storage_path, image_data, mime_type, sort_order)
+        VALUES (?, 'upload_stage', ?, ?, ?, 0)
+      `,
+      args: [imageId, storagePath, base64, mimeType],
+    });
+
+    return NextResponse.json({
+      url: storagePath,
+      path: storagePath,
+      id: imageId,
+      size: buffer.length,
+    });
+  } catch (err) {
+    console.error('Upload error:', err);
+    return NextResponse.json({ error: 'Error al procesar la imagen' }, { status: 500 });
   }
-
-  if (file.size > maxSize) {
-    return NextResponse.json({ error: 'La imagen no puede superar 5 MB.' }, { status: 400 });
-  }
-
-  const path = `products/${crypto.randomUUID()}.${extensionFor(file.type)}`;
-  const { error } = await admin.supabase.storage.from(bucket).upload(path, file, {
-    contentType: file.type,
-    upsert: false,
-  });
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-
-  const { data } = admin.supabase.storage.from(bucket).getPublicUrl(path);
-  return NextResponse.json({ url: data.publicUrl, path });
 }

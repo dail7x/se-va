@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { Edit3, Eye, LogOut, Plus, Save, Trash2, Upload, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { createBrowserSupabaseClient } from '../lib/supabase/client';
 import { categories as defaultCategories, formatPrice, statusLabel, type Status } from './data';
 
 type AdminProduct = {
@@ -37,6 +36,61 @@ function sortedImages(product: AdminProduct) {
   return [...(product.product_images || [])].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 }
 
+// Client-side automatic WebP compression: reduces 4MB images to ~80-120KB in milliseconds
+async function compressImageToWebP(file: File, maxDimension = 1200, quality = 0.82): Promise<File> {
+  // If already small svg or tiny image, return as is
+  if (file.type === 'image/svg+xml' || file.size < 60 * 1024) {
+    return file;
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(file);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file);
+              return;
+            }
+            const cleanName = file.name.replace(/\.[^/.]+$/, '') + '.webp';
+            const compressed = new File([blob], cleanName, { type: 'image/webp' });
+            resolve(compressed);
+          },
+          'image/webp',
+          quality
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [sessionToken, setSessionToken] = useState('');
@@ -46,36 +100,45 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgressText, setUploadProgressText] = useState('');
   const [error, setError] = useState('');
 
   const metrics = useMemo(() => ({
     total: products.length,
-    available: products.filter(product => product.status === 'available').length,
-    reserved: products.filter(product => product.status === 'reserved').length,
-    sold: products.filter(product => product.status === 'sold').length,
+    available: products.filter((p) => p.status === 'available').length,
+    reserved: products.filter((p) => p.status === 'reserved').length,
+    sold: products.filter((p) => p.status === 'sold').length,
   }), [products]);
 
   useEffect(() => {
     async function boot() {
-      const supabase = createBrowserSupabaseClient();
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        router.replace('/admin/login');
-        return;
+      const token = localStorage.getItem('admin_token') || '';
+      if (!token) {
+        // Check cookie
+        const res = await fetch('/api/admin/login');
+        if (!res.ok) {
+          router.replace('/admin/login');
+          return;
+        }
       }
-      setSessionToken(data.session.access_token);
+      setSessionToken(token);
     }
     boot();
   }, [router]);
 
   useEffect(() => {
-    if (sessionToken) loadProducts(sessionToken);
+    if (sessionToken !== '') {
+      loadProducts(sessionToken);
+    }
   }, [sessionToken]);
 
   async function loadProducts(token = sessionToken) {
     setLoading(true);
     setError('');
-    const response = await fetch('/api/admin/products', { headers: { Authorization: `Bearer ${token}` } });
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch('/api/admin/products', { headers });
     if (response.status === 401 || response.status === 403) {
       router.replace('/admin/login');
       return;
@@ -113,7 +176,7 @@ export default function AdminDashboard() {
   function addImage(url: string) {
     const cleanUrl = url.trim();
     if (!cleanUrl) return;
-    setForm((current) => current.images.includes(cleanUrl) ? current : { ...current, images: [...current.images, cleanUrl] });
+    setForm((current) => (current.images.includes(cleanUrl) ? current : { ...current, images: [...current.images, cleanUrl] }));
     setManualImage('');
   }
 
@@ -126,9 +189,12 @@ export default function AdminDashboard() {
     setSaving(true);
     setError('');
 
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (sessionToken) headers['Authorization'] = `Bearer ${sessionToken}`;
+
     const response = await fetch('/api/admin/products', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+      headers,
       body: JSON.stringify({ ...form, price: Number(form.price) }),
     });
     const data = await response.json();
@@ -145,31 +211,55 @@ export default function AdminDashboard() {
     setUploading(true);
     setError('');
 
-    for (const file of Array.from(files)) {
-      const formData = new FormData();
-      formData.append('file', file);
+    const fileList = Array.from(files);
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      setUploadProgressText(`Optimizando foto ${i + 1} de ${fileList.length}...`);
 
-      const response = await fetch('/api/admin/upload', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${sessionToken}` },
-        body: formData,
-      });
-      const data = await response.json();
+      try {
+        // Automatic client-side compression to WebP (drops 4MB to ~80KB)
+        const optimizedFile = await compressImageToWebP(file);
 
-      if (!response.ok) {
-        setError(data.error || 'No pudimos subir una imagen.');
+        setUploadProgressText(`Subiendo foto ${i + 1} de ${fileList.length}...`);
+        const formData = new FormData();
+        formData.append('file', optimizedFile);
+
+        const headers: Record<string, string> = {};
+        if (sessionToken) headers['Authorization'] = `Bearer ${sessionToken}`;
+
+        const response = await fetch('/api/admin/upload', {
+          method: 'POST',
+          headers,
+          body: formData,
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          setError(data.error || 'No pudimos subir una imagen.');
+          setUploading(false);
+          setUploadProgressText('');
+          return;
+        }
+        addImage(data.url);
+      } catch (err) {
+        console.error('Failed to upload image:', err);
+        setError('Error al procesar la imagen.');
         setUploading(false);
+        setUploadProgressText('');
         return;
       }
-      addImage(data.url);
     }
 
     setUploading(false);
+    setUploadProgressText('');
   }
 
   async function removeProduct(id: string) {
     if (!confirm('¿Eliminar este artículo?')) return;
-    const response = await fetch(`/api/admin/products/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${sessionToken}` } });
+    const headers: Record<string, string> = {};
+    if (sessionToken) headers['Authorization'] = `Bearer ${sessionToken}`;
+
+    const response = await fetch(`/api/admin/products/${id}`, { method: 'DELETE', headers });
     if (!response.ok) {
       const data = await response.json();
       setError(data.error || 'No pudimos eliminar el artículo.');
@@ -179,48 +269,128 @@ export default function AdminDashboard() {
   }
 
   async function signOut() {
-    const supabase = createBrowserSupabaseClient();
-    await supabase.auth.signOut();
+    localStorage.removeItem('admin_token');
     router.replace('/admin/login');
   }
 
   return (
     <main className="admin">
       <header className="admin-header">
-        <Link className="logo" href="/">SE VA<span>!</span></Link>
+        <Link className="logo" href="/">
+          SE VA<span>!</span>
+        </Link>
         <span>Panel de casa</span>
         <Link href="/catalogo">Ver catálogo →</Link>
-        <button className="icon-button" onClick={signOut} aria-label="Salir"><LogOut size={17}/></button>
+        <button className="icon-button" onClick={signOut} aria-label="Salir">
+          <LogOut size={17} />
+        </button>
       </header>
       <div className="admin-inner">
         <div className="admin-title">
-          <div><p className="eyebrow">Mi inventario</p><h1>Todo en su lugar.</h1></div>
-          <button className="primary-action" onClick={resetForm}><Plus size={17}/> Nueva cosa</button>
+          <div>
+            <p className="eyebrow">Mi inventario</p>
+            <h1>Todo en su lugar.</h1>
+          </div>
+          <button className="primary-action" onClick={resetForm}>
+            <Plus size={17} /> Nueva cosa
+          </button>
         </div>
         <div className="metrics">
-          <div><b>{metrics.total}</b><span>Cosas en total</span></div>
-          <div><b>{metrics.available}</b><span>Todavía están</span></div>
-          <div><b>{metrics.reserved}</b><span>Casi se van</span></div>
-          <div><b>{metrics.sold}</b><span>Se fueron</span></div>
+          <div>
+            <b>{metrics.total}</b>
+            <span>Cosas en total</span>
+          </div>
+          <div>
+            <b>{metrics.available}</b>
+            <span>Todavía están</span>
+          </div>
+          <div>
+            <b>{metrics.reserved}</b>
+            <span>Casi se van</span>
+          </div>
+          <div>
+            <b>{metrics.sold}</b>
+            <span>Se fueron</span>
+          </div>
         </div>
-        {error&&<p className="form-error">{error}</p>}
+        {error && <p className="form-error">{error}</p>}
         <section className="admin-grid">
           <form className="product-form" onSubmit={saveProduct}>
             <div className="form-title">
-              <h2>{form.id?'Editar cosa':'Nueva cosa'}</h2>
-              {form.id&&<button type="button" onClick={resetForm}><X size={17}/> Cancelar</button>}
+              <h2>{form.id ? 'Editar cosa' : 'Nueva cosa'}</h2>
+              {form.id && (
+                <button type="button" onClick={resetForm}>
+                  <X size={17} /> Cancelar
+                </button>
+              )}
             </div>
-            <label>Título<input value={form.title} onChange={event=>setForm({...form,title:event.target.value})} required/></label>
-            <label>Slug<input value={form.slug} onChange={event=>setForm({...form,slug:event.target.value})} placeholder="se-genera-si-lo-dejas-vacio"/></label>
-            <label>Precio ARS<input type="number" min="0" value={form.price} onChange={event=>setForm({...form,price:event.target.value})} required/></label>
-            <label>Categoría<select value={form.category} onChange={event=>setForm({...form,category:event.target.value})}>{defaultCategories.filter(category=>category!=='Todo').map(category=><option key={category}>{category}</option>)}</select></label>
-            <label>Estado<select value={form.status} onChange={event=>setForm({...form,status:event.target.value as Status})}><option value="available">Todavía está</option><option value="reserved">Casi se va</option><option value="sold">Ya se fue!</option></select></label>
+            <label>
+              Título
+              <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
+            </label>
+            <label>
+              Slug
+              <input
+                value={form.slug}
+                onChange={(event) => setForm({ ...form, slug: event.target.value })}
+                placeholder="se-genera-si-lo-dejas-vacio"
+              />
+            </label>
+            <label>
+              Precio ARS
+              <input
+                type="number"
+                min="0"
+                value={form.price}
+                onChange={(event) => setForm({ ...form, price: event.target.value })}
+                required
+              />
+            </label>
+            <label>
+              Categoría
+              <select
+                value={form.category}
+                onChange={(event) => setForm({ ...form, category: event.target.value })}
+              >
+                {defaultCategories
+                  .filter((category) => category !== 'Todo')
+                  .map((category) => (
+                    <option key={category}>{category}</option>
+                  ))}
+              </select>
+            </label>
+            <label>
+              Estado
+              <select
+                value={form.status}
+                onChange={(event) => setForm({ ...form, status: event.target.value as Status })}
+              >
+                <option value="available">Todavía está</option>
+                <option value="reserved">Casi se va</option>
+                <option value="sold">Ya se fue!</option>
+              </select>
+            </label>
             <div className="image-field">
               <span className="field-label">Fotos</span>
-              <label className="upload-control"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={event=>uploadImages(event.target.files)}/><Upload size={17}/>{uploading?'Subiendo...':'Subir fotos'}</label>
+              <label className="upload-control">
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  multiple
+                  onChange={(event) => uploadImages(event.target.files)}
+                />
+                <Upload size={17} />
+                {uploading ? (uploadProgressText || 'Subiendo...') : 'Subir fotos (Auto-optimizadas)'}
+              </label>
               <div className="manual-image">
-                <input value={manualImage} onChange={event=>setManualImage(event.target.value)} placeholder="O pegá una URL de imagen"/>
-                <button type="button" onClick={()=>addImage(manualImage)}>Agregar URL</button>
+                <input
+                  value={manualImage}
+                  onChange={(event) => setManualImage(event.target.value)}
+                  placeholder="O pegá una URL de imagen"
+                />
+                <button type="button" onClick={() => addImage(manualImage)}>
+                  Agregar URL
+                </button>
               </div>
               {form.images.length > 0 && (
                 <div className="image-previews">
@@ -228,25 +398,93 @@ export default function AdminDashboard() {
                     <div key={image} className="image-preview-item">
                       <img src={image} alt={`Foto ${index + 1}`} />
                       <span>{index === 0 ? 'Principal' : `Foto ${index + 1}`}</span>
-                      <button type="button" onClick={()=>removeImage(image)} aria-label="Quitar foto"><X size={15}/></button>
+                      <button type="button" onClick={() => removeImage(image)} aria-label="Quitar foto">
+                        <X size={15} />
+                      </button>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            <label>Descripción<textarea value={form.description} onChange={event=>setForm({...form,description:event.target.value})} rows={5}/></label>
+            <label>
+              Descripción
+              <textarea
+                value={form.description}
+                onChange={(event) => setForm({ ...form, description: event.target.value })}
+                rows={5}
+              />
+            </label>
             <div className="switches">
-              <label><input type="checkbox" checked={form.is_public} onChange={event=>setForm({...form,is_public:event.target.checked})}/> Publicado</label>
-              <label><input type="checkbox" checked={form.is_featured} onChange={event=>setForm({...form,is_featured:event.target.checked})}/> Destacado</label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={form.is_public}
+                  onChange={(event) => setForm({ ...form, is_public: event.target.checked })}
+                />{' '}
+                Publicado
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={form.is_featured}
+                  onChange={(event) => setForm({ ...form, is_featured: event.target.checked })}
+                />{' '}
+                Destacado
+              </label>
             </div>
-            <button className="primary-action" disabled={saving||uploading}><Save size={17}/>{saving?'Guardando...':'Guardar cosa'}</button>
+            <button className="primary-action" disabled={saving || uploading}>
+              <Save size={17} />
+              {saving ? 'Guardando...' : 'Guardar cosa'}
+            </button>
           </form>
           <div className="admin-table">
-            <div className="table-head"><span>Cosa</span><span>Estado</span><span>Precio</span><span>Acción</span></div>
-            {loading?<p className="table-note">Cargando inventario...</p>:products.map(product=>{
-              const images = sortedImages(product);
-              return <div className="table-row" key={product.id}><div className="admin-product"><img src={images[0]?.storage_path || 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=900&q=85'} alt=""/><div><b>{product.title}</b><small>{product.categories?.name || 'Varios'} · {images.length} foto{images.length === 1 ? '' : 's'}{!product.is_public?' · oculto':''}</small></div></div><span className={'status '+product.status}>{statusLabel[product.status]}</span><span>{formatPrice(Math.round(product.price_cents/100))}</span><div className="row-actions"><Link href={'/producto/'+product.slug} aria-label="Ver"><Eye size={16}/></Link><button onClick={()=>editProduct(product)} aria-label="Editar"><Edit3 size={16}/></button><button onClick={()=>removeProduct(product.id)} aria-label="Eliminar"><Trash2 size={16}/></button></div></div>
-            })}
+            <div className="table-head">
+              <span>Cosa</span>
+              <span>Estado</span>
+              <span>Precio</span>
+              <span>Acción</span>
+            </div>
+            {loading ? (
+              <p className="table-note">Cargando inventario...</p>
+            ) : (
+              products.map((product) => {
+                const images = sortedImages(product);
+                return (
+                  <div className="table-row" key={product.id}>
+                    <div className="admin-product">
+                      <img
+                        src={
+                          images[0]?.storage_path ||
+                          'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=900&q=85'
+                        }
+                        alt=""
+                      />
+                      <div>
+                        <b>{product.title}</b>
+                        <small>
+                          {product.categories?.name || 'Varios'} · {images.length} foto
+                          {images.length === 1 ? '' : 's'}
+                          {!product.is_public ? ' · oculto' : ''}
+                        </small>
+                      </div>
+                    </div>
+                    <span className={'status ' + product.status}>{statusLabel[product.status]}</span>
+                    <span>{formatPrice(Math.round(product.price_cents / 100))}</span>
+                    <div className="row-actions">
+                      <Link href={'/producto/' + product.slug} aria-label="Ver">
+                        <Eye size={16} />
+                      </Link>
+                      <button onClick={() => editProduct(product)} aria-label="Editar">
+                        <Edit3 size={16} />
+                      </button>
+                      <button onClick={() => removeProduct(product.id)} aria-label="Eliminar">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </section>
       </div>

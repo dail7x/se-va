@@ -3,3 +3,7 @@ node_modules
 out
 .env*
 !.env.example
+.vercel
+*.pem
+jwt_token.txt
+data/
