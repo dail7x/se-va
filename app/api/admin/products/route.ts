@@ -83,11 +83,6 @@ export async function POST(request: NextRequest) {
         args: [title, slug, description, status, priceCents, categoryId, isFeatured, isPublic, publishedAt, productId],
       });
 
-      // Remove previous images that are not retained or delete and re-insert
-      await db.execute({
-        sql: 'DELETE FROM product_images WHERE product_id = ?',
-        args: [productId],
-      });
     } else {
       // Insert
       await db.execute({
@@ -99,31 +94,64 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Insert or associate images
-    for (const [index, imgPath] of images.entries()) {
-      const imgId = crypto.randomUUID();
+    // Associate / update images without destroying image_data
+    const keptImageIds: string[] = [];
 
-      // Check if this image was uploaded in stage (via /api/images/[uuid])
+    for (const [index, imgPath] of images.entries()) {
       const match = imgPath.match(/\/api\/images\/([a-f0-9-]+)/i);
       if (match && match[1]) {
-        const uploadedId = match[1];
-        // Update product_id of the staged image
+        const imageId = match[1];
+        keptImageIds.push(imageId);
+
+        // Update product_id (claims from upload_stage or re-affirms) and sort_order
         const updateRes = await db.execute({
           sql: 'UPDATE product_images SET product_id = ?, sort_order = ? WHERE id = ?',
-          args: [productId, index, uploadedId],
+          args: [productId, index, imageId],
         });
+
         if (updateRes.rowsAffected === 0) {
-          // If not in stage, insert as reference
           await db.execute({
             sql: 'INSERT INTO product_images (id, product_id, storage_path, sort_order) VALUES (?, ?, ?, ?)',
-            args: [imgId, productId, imgPath, index],
+            args: [imageId, productId, imgPath, index],
           });
         }
       } else {
-        // External URL (e.g. unsplash)
+        // External URL (e.g. Unsplash or Supabase legacy link)
+        const existingImg = await db.execute({
+          sql: 'SELECT id FROM product_images WHERE product_id = ? AND storage_path = ? LIMIT 1',
+          args: [productId, imgPath],
+        });
+
+        if (existingImg.rows.length > 0) {
+          const existingId = String(existingImg.rows[0].id);
+          keptImageIds.push(existingId);
+          await db.execute({
+            sql: 'UPDATE product_images SET sort_order = ? WHERE id = ?',
+            args: [index, existingId],
+          });
+        } else {
+          const newImgId = crypto.randomUUID();
+          keptImageIds.push(newImgId);
+          await db.execute({
+            sql: 'INSERT INTO product_images (id, product_id, storage_path, sort_order) VALUES (?, ?, ?, ?)',
+            args: [newImgId, productId, imgPath, index],
+          });
+        }
+      }
+    }
+
+    // Clean up only images previously attached to this product that were removed by the admin
+    if (body.id) {
+      if (keptImageIds.length > 0) {
+        const placeholders = keptImageIds.map(() => '?').join(',');
         await db.execute({
-          sql: 'INSERT INTO product_images (id, product_id, storage_path, sort_order) VALUES (?, ?, ?, ?)',
-          args: [imgId, productId, imgPath, index],
+          sql: `DELETE FROM product_images WHERE product_id = ? AND id NOT IN (${placeholders})`,
+          args: [productId, ...keptImageIds],
+        });
+      } else {
+        await db.execute({
+          sql: 'DELETE FROM product_images WHERE product_id = ?',
+          args: [productId],
         });
       }
     }

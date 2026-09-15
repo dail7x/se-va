@@ -32,6 +32,16 @@ export async function POST(request: NextRequest) {
     const storagePath = `/api/images/${imageId}`;
 
     const db = getDb();
+
+    // Ensure upload_stage placeholder exists in products to satisfy foreign key constraint
+    await db.execute({
+      sql: `
+        INSERT OR IGNORE INTO products (id, title, slug, description, price_cents, status, is_public)
+        VALUES ('upload_stage', 'Upload Stage', 'upload-stage-internal', '', 0, 'draft', 0)
+      `,
+      args: [],
+    });
+
     // Insert with temporary product_id = 'upload_stage' until assigned to a product
     await db.execute({
       sql: `
@@ -49,6 +59,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     console.error('Upload error:', err);
-    return NextResponse.json({ error: 'Error al procesar la imagen' }, { status: 500 });
+    const message = err instanceof Error ? err.message : 'Error al procesar la imagen';
+    return NextResponse.json({ error: `Error al procesar la imagen: ${message}` }, { status: 500 });
   }
 }

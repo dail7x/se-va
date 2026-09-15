@@ -19,7 +19,7 @@ export async function getPublicProducts(): Promise<Product[]> {
         p.is_featured, p.is_public, c.name as category_name
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
-      WHERE p.is_public = 1 AND p.status NOT IN ('draft', 'archived')
+      WHERE p.is_public = 1 AND p.status NOT IN ('draft', 'archived') AND p.id != 'upload_stage'
       ORDER BY p.created_at DESC
     `);
 
@@ -86,6 +86,7 @@ export async function getAdminProducts() {
       p.is_featured, p.is_public, p.category_id, c.name as category_name
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.id
+    WHERE p.id != 'upload_stage'
     ORDER BY p.created_at DESC
   `);
 
