@@ -520,7 +520,7 @@ export default function TinderView({ products }: { products: Product[] }) {
                 <button onClick={handleReset} className="tinder-btn-reset">
                   <RotateCcw size={16} /> Empezar a deslizar de nuevo
                 </button>
-                <Link href="/catalogo" className="finished-catalog-link">
+                <Link href="/" className="finished-catalog-link">
                   Volver al catálogo tradicional
                 </Link>
               </div>
@@ -588,7 +588,7 @@ export default function TinderView({ products }: { products: Product[] }) {
           {/* Bottom Footer Button to switch to Modo Catálogo */}
           {!isFinished && (
             <footer className="tinder-footer">
-              <Link href="/catalogo" className="tinder-catalog-switch-btn" title="Ver artículos en Modo Catálogo">
+              <Link href="/" className="tinder-catalog-switch-btn" title="Ver artículos en Modo Catálogo">
                 <LayoutGrid size={15} />
                 <span>Ver artículos en Modo Catálogo</span>
               </Link>
@@ -912,7 +912,7 @@ export default function TinderView({ products }: { products: Product[] }) {
                   <ChevronRight size={18} />
                 </button>
                 <Link
-                  href="/catalogo"
+                  href="/"
                   className="tutorial-catalog-btn"
                   onClick={handleDismissTutorial}
                 >

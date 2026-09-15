@@ -1,15 +1,16 @@
 import type { Metadata } from 'next';
-import TinderView from '../components/TinderView';
+import Catalog from '../components/Catalog';
 import { getPublicProducts } from '../lib/products';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'SE VA! — Modo Swipe · Cosas que buscan nueva casa',
-  description: 'Deslizá para descubrir cosas de venta de garaje. Derecha te lo llevás, izquierda pasás, o guardalo en Puede ser.',
+  title: 'SE VA! — Cosas que buscan nueva casa',
+  description: 'Venta de garaje · Objetos con historia buscando su próximo hogar en Buenos Aires.',
 };
 
 export default async function Home() {
   const products = await getPublicProducts();
-  return <TinderView products={products} />;
+  return <Catalog products={products} />;
 }
+

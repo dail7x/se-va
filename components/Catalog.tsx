@@ -10,9 +10,15 @@ import { categories as baseCategories, type Product } from './data';
 export default function Catalog({ products }: { products: Product[] }) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('Todo');
+  const [onlyAvailable, setOnlyAvailable] = useState(false);
 
   const categories = useMemo(
     () => Array.from(new Set([...baseCategories, ...products.map((p) => p.category)])),
+    [products]
+  );
+
+  const availableCount = useMemo(
+    () => products.filter((p) => p.status === 'available').length,
     [products]
   );
 
@@ -20,10 +26,11 @@ export default function Catalog({ products }: { products: Product[] }) {
     () =>
       products.filter(
         (p) =>
+          (!onlyAvailable || p.status === 'available') &&
           (category === 'Todo' || p.category === category) &&
           (!query || `${p.title} ${p.category}`.toLowerCase().includes(query.toLowerCase()))
       ),
-    [query, category, products]
+    [query, category, onlyAvailable, products]
   );
 
   return (
@@ -61,6 +68,19 @@ export default function Catalog({ products }: { products: Product[] }) {
               placeholder="¿Qué estás buscando?"
             />
           </div>
+          <div className="filter-available-wrapper">
+            <button
+              type="button"
+              className={`chip-available-toggle ${onlyAvailable ? 'active' : ''}`}
+              onClick={() => setOnlyAvailable(!onlyAvailable)}
+              aria-pressed={onlyAvailable}
+              title={onlyAvailable ? 'Mostrar todos los artículos' : 'Ver únicamente artículos disponibles'}
+            >
+              <span className="available-status-dot" />
+              <span>Solo disponibles</span>
+              <span className="available-badge-count">{availableCount}</span>
+            </button>
+          </div>
           <div className="chips">
             {categories.map((c) => (
               <button
@@ -76,7 +96,16 @@ export default function Catalog({ products }: { products: Product[] }) {
 
         <div className="catalog-heading">
           <p>
-            <b>{filtered.length}</b> cosas esperando que las encuentres
+            <b>{filtered.length}</b> {onlyAvailable ? 'cosas disponibles' : 'cosas esperando que las encuentres'}
+            {onlyAvailable && (
+              <button
+                type="button"
+                className="clear-available-filter-link"
+                onClick={() => setOnlyAvailable(false)}
+              >
+                (Mostrar todas)
+              </button>
+            )}
           </p>
           <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
             <Link href="/descubrir" className="swipe-inline-cue">
@@ -98,7 +127,24 @@ export default function Catalog({ products }: { products: Product[] }) {
           <div className="empty">
             <span>⌂</span>
             <h2>No encontramos esa cosa</h2>
-            <p>Probá con otra palabra o mirá todo lo que todavía está.</p>
+            <p>
+              {onlyAvailable
+                ? 'Probá desactivando el filtro "Solo disponibles" o cambiando de categoría.'
+                : 'Probá con otra palabra o mirá todo lo que todavía está.'}
+            </p>
+            {onlyAvailable && (
+              <button
+                type="button"
+                className="clear-filter-btn"
+                onClick={() => {
+                  setOnlyAvailable(false);
+                  setCategory('Todo');
+                  setQuery('');
+                }}
+              >
+                Mostrar todos los artículos
+              </button>
+            )}
           </div>
         )}
       </main>

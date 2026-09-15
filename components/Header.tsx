@@ -8,7 +8,7 @@ import { useSelection } from './SelectionProvider';
 export default function Header({ onSearch }: { onSearch?: () => void }) {
   const { selected } = useSelection();
   const pathname = usePathname();
-  const isCatalog = pathname === '/catalogo';
+  const isCatalog = pathname === '/catalogo' || pathname === '/';
 
   return (
     <header className="site-header">
@@ -23,12 +23,12 @@ export default function Header({ onSearch }: { onSearch?: () => void }) {
           </button>
         )}
         {isCatalog ? (
-          <Link href="/" className="swipe-header-link" title="Descubrir objetos deslizando">
+          <Link href="/descubrir" className="swipe-header-link" title="Descubrir objetos deslizando">
             <Flame size={17} />
             <span>Modo Swipe</span>
           </Link>
         ) : (
-          <Link href="/catalogo" className="header-catalog-btn" title="Ver artículos en Modo catálogo">
+          <Link href="/" className="header-catalog-btn" title="Ver artículos en Modo catálogo">
             <LayoutGrid size={16} />
             <span>Modo catálogo</span>
           </Link>
