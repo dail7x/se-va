@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "sync-fallback": "node scripts/sync-fallback.mjs",
     "setup:supabase": "node scripts/setup-supabase.mjs"
   },
   "dependencies": {

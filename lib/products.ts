@@ -1,5 +1,5 @@
 import { unstable_noStore as noStore } from 'next/cache';
-import { products as demoProducts, type Product } from '../components/data';
+import { products as fallbackProducts, type Product } from '../components/data';
 import { getDb } from './db';
 
 type ImageRow = {
@@ -24,7 +24,7 @@ export async function getPublicProducts(): Promise<Product[]> {
     `);
 
     if (!productsRes.rows.length) {
-      return demoProducts;
+      return fallbackProducts;
     }
 
     const productIds = productsRes.rows.map((row) => String(row.id));
@@ -68,8 +68,8 @@ export async function getPublicProducts(): Promise<Product[]> {
       };
     });
   } catch (err) {
-    console.error('Error fetching products from SQLite:', err);
-    return demoProducts;
+    console.error('Error fetching products from SQLite, serving fallback snapshot:', err);
+    return fallbackProducts;
   }
 }
 
