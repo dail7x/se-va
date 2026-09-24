@@ -17,9 +17,11 @@ export async function GET(
       args: [id, id, `/api/images/${id}`],
     });
 
+    const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=900&q=85';
+
     const row = result.rows[0];
     if (!row) {
-      return new NextResponse('Image not found', { status: 404 });
+      return NextResponse.redirect(FALLBACK_IMAGE);
     }
 
     if (row.image_data) {
@@ -43,9 +45,10 @@ export async function GET(
       return NextResponse.redirect(storagePath);
     }
 
-    return new NextResponse('No image content found', { status: 404 });
+    return NextResponse.redirect(FALLBACK_IMAGE);
   } catch (err) {
     console.error('Error serving image:', err);
-    return new NextResponse('Internal server error', { status: 500 });
+    const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=900&q=85';
+    return NextResponse.redirect(FALLBACK_IMAGE);
   }
 }
