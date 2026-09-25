@@ -7,3 +7,4 @@ out
 *.pem
 jwt_token.txt
 data/
+backups/

@@ -4,7 +4,7 @@ let client: Client | null = null;
 
 export function getDb(): Client {
   if (!client) {
-    const url = process.env.DATABASE_URL || 'libsql://venezuelajuntos-dail7x.aws-us-east-2.turso.io';
+    const url = process.env.DATABASE_URL || 'https://db-seva.116.203.118.1.sslip.io';
     const authToken = process.env.DATABASE_AUTH_TOKEN;
 
     client = createClient({
